@@ -38,7 +38,7 @@
   --pink: #FF8FB1;
   --pink-strong: #FF5E94;
   --pink-deep: #F43F7F;
-  --cyan: #7DE8F5;
+  --rose-mist: #E7A0B3;
   --success: #7DE8A5;
   --danger: #FF6B6B;
 
@@ -50,7 +50,7 @@
 
   /* Glow */
   --glow-pink: rgba(255, 94, 148, 0.35);
-  --glow-cyan: rgba(125, 232, 245, 0.3);
+  --glow-rose: rgba(231, 160, 179, 0.20);
 
   /* Radius */
   --radius-sm: 12px;
@@ -63,11 +63,11 @@
   --font-body: "Manrope", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 
   /* Gradien sinematik */
-  --gradient-accent: linear-gradient(100deg, #FFB3C9 0%, #FF5E94 50%, #8FE9F7 100%);
+  --gradient-accent: linear-gradient(100deg, #FFE2EA 0%, #FF8FB1 48%, #C94F72 100%);
   --gradient-button: linear-gradient(135deg, #FFC1D4 0%, #FF5E94 55%, #FF8FD0 100%);
   --gradient-page:
     radial-gradient(1100px 700px at 82% -8%, rgba(244, 63, 127, 0.14), transparent 62%),
-    radial-gradient(800px 600px at 4% 14%, rgba(125, 232, 245, 0.07), transparent 58%),
+    radial-gradient(800px 600px at 4% 14%, rgba(231, 160, 179, 0.045), transparent 58%),
     radial-gradient(900px 700px at 50% 118%, rgba(122, 16, 62, 0.42), transparent 62%);
 
   /* Durasi animasi */
@@ -145,7 +145,7 @@ input:focus-visible,
 textarea:focus-visible,
 select:focus-visible,
 [tabindex]:focus-visible {
-  outline: 2px solid var(--cyan);
+  outline: 2px solid var(--rose-mist);
   outline-offset: 3px;
 }
 
@@ -173,9 +173,9 @@ select:focus-visible,
   gap: 0.6rem;
   padding: 0.45rem 1.05rem;
   border-radius: var(--radius-full);
-  border: 1px solid rgba(125, 232, 245, 0.3);
-  background: rgba(125, 232, 245, 0.06);
-  color: var(--cyan);
+  border: 1px solid rgba(231, 160, 179, 0.20);
+  background: rgba(231, 160, 179, 0.06);
+  color: var(--rose-mist);
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.22em;
@@ -480,7 +480,7 @@ select:focus-visible,
   min-width: 0;
   border: none;
   background: transparent;
-  color: var(--cyan);
+  color: var(--rose-mist);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.85rem;
 }
@@ -561,7 +561,7 @@ select:focus-visible,
 }
 
 .gateway-eyebrow {
-  color: var(--cyan);
+  color: var(--rose-mist);
   font-size: 0.8rem;
   font-weight: 700;
   letter-spacing: 0.28em;
@@ -638,7 +638,7 @@ select:focus-visible,
 
 .re-hero { text-align: center; display: grid; gap: 0.9rem; }
 .re-eyebrow {
-  color: var(--cyan);
+  color: var(--rose-mist);
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.3em;
