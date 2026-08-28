@@ -42,13 +42,13 @@
     ambient: 0xFF8FB1,
     keyLight: 0xFFF1F6,
     pinkGlow: 0xFF5E94,
-    cyanGlow: 0x7DE8F5,
+    roseMist: 0xE7A0B3,
     heroHeart: 0xFF5E94,
     heroEmissive: 0x7A0D35,
-    hearts: [0xFF8FB1, 0xFF5E94, 0xF43F7F, 0x7DE8F5],
+    hearts: [0xFFB3C9, 0xFF8FB1, 0xFF5E94, 0xC94F72],
     petal: 0xFFB3C9,
     petalEmissive: 0x531026,
-    stars: ['#FFB3C9', '#FF5E94', '#7DE8F5', '#FFF1F6']
+    stars: ['#FFB3C9', '#FF8FB1', '#C94F72', '#FFF1F6']
   });
 
   /* ==================== UTILITAS ==================== */
@@ -269,7 +269,7 @@
     pinkLight.position.set(0, 1.5, 4);
     scene.add(pinkLight);
 
-    cyanLight = new THREE.PointLight(COLORS.cyanGlow, 1.6, 0, 0);
+    cyanLight = new THREE.PointLight(COLORS.roseMist, 1.6, 0, 0);
     cyanLight.position.set(-5, -2, 3);
     scene.add(cyanLight);
 

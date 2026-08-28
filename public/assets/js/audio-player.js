@@ -35,6 +35,7 @@
   /* ==================== KONFIGURASI ==================== */
 
   var BGM_VOLUME = 0.6;
+  var BGM_FADE_MS = 1800;
   var CHIME_VOLUME = 0.85;
 
   /* ==================== UTILITAS ==================== */
@@ -81,6 +82,7 @@
     var muted = false;
     var unlocked = false;
     var destroyed = false;
+    var fadeTimer = null;
     var usingFallback = !customMusicUrl;
 
     /* ---------- Elemen audio ---------- */
@@ -112,12 +114,51 @@
 
     /* ---------- Playback helper ---------- */
 
+    function stopFade() {
+      if (fadeTimer !== null) {
+        window.clearInterval(fadeTimer);
+        fadeTimer = null;
+      }
+    }
+
+    function fadeInBgm() {
+      stopFade();
+      if (destroyed || muted) return;
+      bgm.volume = 0;
+      var startedAt = Date.now();
+      fadeTimer = window.setInterval(function () {
+        if (destroyed || muted) {
+          stopFade();
+          return;
+        }
+        var progress = Math.min(1, (Date.now() - startedAt) / BGM_FADE_MS);
+        bgm.volume = BGM_VOLUME * progress;
+        if (progress >= 1) stopFade();
+      }, 40);
+    }
+
     function tryPlay() {
       if (destroyed) {
         return;
       }
       try {
         var playPromise = bgm.play();
+        if (playPromise && typeof playPromise.then === 'function') {
+          playPromise.then(function () {
+            fadeInBgm();
+          }).catch(function (err) {
+            if (err && err.name === 'NotAllowedError') {
+              console.warn('[RomanceAudio] Autoplay diblokir browser; audio menunggu gesture berikutnya.');
+            } else if (err && err.name === 'AbortError') {
+              // Sumber diganti saat play sedang berjalan — tidak perlu ditindaklanjuti.
+            } else {
+              console.warn('[RomanceAudio] Playback BGM gagal.', err);
+            }
+          });
+        } else if (!muted) {
+          fadeInBgm();
+        }
+        /*
         if (playPromise && typeof playPromise.catch === 'function') {
           playPromise.catch(function (err) {
             if (err && err.name === 'NotAllowedError') {
@@ -129,6 +170,7 @@
             }
           });
         }
+        */
       } catch (err) {
         console.warn('[RomanceAudio] play() melempar exception; audio dilewati.', err);
       }
