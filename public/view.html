@@ -7,7 +7,7 @@
   ============================================================
   Fitur yang diorkestrasikan halaman ini:
     F-002 Startup & fallback data (API -> ?data= base64 -> recovery)
-    F-003 Gesture audio gateway ("Tap to Open My Heart")
+    F-003 Gesture audio gateway ("Buka suratnya")
     F-004 WebGL scene (didelegasikan ke assets/js/3d-hearts.js)
     F-005 Interaksi YES/NO (didelegasikan ke assets/js/interactive.js)
     F-006 YES celebration + love letter modal (typing aman)
@@ -38,7 +38,7 @@
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#0D0208">
 <meta name="robots" content="noindex, nofollow">
-<title>Untukmu ♥ Romance Engine</title>
+<title>Surat Cinta Untuk Dia ♥</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23FF5E94' d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'/%3E%3C/svg%3E">
 
 <!-- Desain lengkap ada di assets/css/style.css.
@@ -110,33 +110,33 @@
 
   <!-- ================= GATEWAY (F-003) ================= -->
   <section id="screen-gateway" class="screen" hidden aria-labelledby="gateway-label">
-    <p class="gateway-eyebrow">Ada sesuatu untukmu</p>
+    <p class="gateway-eyebrow">Sebuah surat untukmu</p>
     <p id="gateway-name" class="gateway-name"></p>
-    <button id="gateway-button" class="gateway-button" type="button" aria-label="Buka pengalaman. Tap to Open My Heart">
+    <button id="gateway-button" class="gateway-button" type="button" aria-label="Buka pengalaman. Buka suratnya">
       <span class="gateway-heart" aria-hidden="true">♥</span>
-      <span id="gateway-label" class="gateway-label">Tap to Open My Heart</span>
+      <span id="gateway-label" class="gateway-label">Buka suratnya</span>
     </button>
-    <p class="gateway-hint">Gunakan earphone untuk pengalaman terbaik 🎧</p>
+    <p class="gateway-hint">Putar dengan pelan. Biarkan surat ini sampai kepadamu.</p>\n    <p class="gateway-song">♫ Surat Cinta Untuk Dia</p>
   </section>
 
   <!-- ================= EXPERIENCE ================= -->
   <section id="screen-experience" class="experience" hidden aria-label="Pengalaman romantis">
 
     <header class="re-hero">
-      <p class="re-eyebrow">Sebuah pesan untukmu</p>
+      <p class="re-eyebrow">Surat Cinta Untuk Dia</p>
       <h1 class="re-title">Untuk <span id="experience-name"></span></h1>
-      <p class="re-sub">Ada sesuatu yang ingin kusampaikan sejak lama…</p>
+      <p class="re-sub">Ada sesuatu yang ingin kusampaikan, dan kali ini kutuliskan untukmu.</p>
     </header>
 
     <!-- Foto kenangan (opsional — hanya tampil jika URL valid & berhasil dimuat) -->
     <figure id="photo-frame" class="re-photo" hidden>
       <img id="photo-img" alt="" loading="lazy" referrerpolicy="no-referrer">
-      <figcaption class="re-photo-caption">Salah satu kenangan favorit kita</figcaption>
+      <figcaption class="re-photo-caption">Salah satu kenangan yang kusimpan untukmu</figcaption>
     </figure>
 
     <!-- F-007: Special day counter -->
     <section class="re-counter" aria-labelledby="counter-title">
-      <h2 id="counter-title" class="re-section-title">Perjalanan Kita</h2>
+      <h2 id="counter-title" class="re-section-title">Waktu yang Kita Simpan</h2>
       <p id="counter-label" class="counter-label">…</p>
       <div class="counter-grid" role="timer" aria-live="off">
         <div class="counter-cell">
@@ -163,7 +163,7 @@
       <h2 id="question-heading" class="re-question-title" tabindex="-1">
         Maukah kamu terus berjalan bersamaku?
       </h2>
-      <p class="re-question-sub">Jawablah dengan jujur, dari hatimu.</p>
+      <p class="re-question-sub">Tak perlu terburu-buru. Jawablah dari hatimu.</p>
       <div id="no-playground" class="no-playground">
         <button id="btn-yes" class="btn btn-yes" type="button">Ya, Aku Mau ♥</button>
         <button id="btn-no" class="btn btn-no" type="button">Tidak</button>
@@ -171,7 +171,7 @@
     </section>
 
     <footer class="re-footer">
-      <a href="index.html">Romance Engine</a>
+      <a href="index.html">AXION Neuralis</a>
     </footer>
   </section>
 
@@ -179,7 +179,7 @@
 
 <!-- Toggle musik (muncul jika audio tersedia) -->
 <button id="btn-sound" class="sound-toggle" type="button" aria-pressed="false" hidden>
-  <span id="sound-toggle-label">Musik: Nyala</span>
+  <span id="sound-toggle-label">Surat Cinta Untuk Dia · Nyala</span>
 </button>
 
 <!-- ================= F-006: LOVE LETTER MODAL ================= -->
@@ -526,7 +526,7 @@
     if (!state.audio) return;
     var muted = !!state.audio.isMuted;
     els.soundToggle.setAttribute('aria-pressed', muted ? 'true' : 'false');
-    els.soundToggleLabel.textContent = muted ? 'Musik: Mati' : 'Musik: Nyala';
+    els.soundToggleLabel.textContent = muted ? 'Surat Cinta Untuk Dia · Mati' : 'Surat Cinta Untuk Dia · Nyala';
   }
 
   /* ---------------- Gateway -> Experience ---------------- */
