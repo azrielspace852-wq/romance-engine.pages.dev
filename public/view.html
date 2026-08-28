@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<!--
+  ============================================================
+  Romance Engine V1 — public/view.html (Romantic Experience)
+  ============================================================
+  Fitur yang diorkestrasikan halaman ini:
+    F-002 Startup & fallback data (API -> ?data= base64 -> recovery)
+    F-003 Gesture audio gateway ("Tap to Open My Heart")
+    F-004 WebGL scene (didelegasikan ke assets/js/3d-hearts.js)
+    F-005 Interaksi YES/NO (didelegasikan ke assets/js/interactive.js)
+    F-006 YES celebration + love letter modal (typing aman)
+    F-007 Real-time special day counter (interval tunggal)
+
+  KONTRAK MODUL (wajib dipenuhi file lain — jangan diubah sepihak):
+    window.RomanceAudio.init({ musicUrl, defaultBgmSrc, chimeSrc })
+      -> { unlock(), toggleMute(), playChime(), isMuted, destroy() }
+    window.RomanceScene.init(container, { reducedMotion })
+      -> { start(), celebrate(), destroy() } | null
+    window.RomanceInteractive.init({ yesButton, noButton,
+      playground, reducedMotion, onYes })
+
+  KEPUTUSAN KEAMANAN:
+    - Seluruh konten user dirender via textContent, tidak pernah innerHTML.
+    - photoUrl/musicUrl divalidasi ulang di client (http/https saja).
+    - Base64 fallback di-decode UTF-8 secara aman (TextDecoder, non-fatal).
+    - <meta robots noindex> : halaman berisi surat pribadi.
+
+  LAPISAN Z (kontrak visual — dijaga oleh style.css):
+    #scene-container / #css-hearts : 0
+    .screen / experience           : 1
+    #btn-sound                     : 30
+    #letter-modal                  : 50
+-->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0D0208">
+<meta name="robots" content="noindex, nofollow">
+<title>Untukmu ♥ Romance Engine</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23FF5E94' d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'/%3E%3C/svg%3E">
+
+<!-- Desain lengkap ada di assets/css/style.css.
+     Blok kritis ini hanya menjamin layout dasar tetap benar
+     seandainya style.css gagal dimuat. -->
+<link rel="stylesheet" href="assets/css/style.css">
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: #0D0208;
+    color: #FDF2F6;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+    min-height: 100svh;
+    overflow-x: hidden;
+  }
+  [hidden] { display: none !important; }
+  #scene-container, #css-hearts { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+  .screen {
+    position: fixed; inset: 0; z-index: 1;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center; padding: 1.5rem; box-sizing: border-box;
+  }
+  #screen-experience {
+    position: relative; inset: auto; display: block;
+    min-height: 100vh; min-height: 100svh;
+  }
+  #letter-modal { position: fixed; inset: 0; z-index: 50; }
+  #btn-sound { position: fixed; top: 1rem; right: 1rem; z-index: 30; }
+  body.modal-open { overflow: hidden; }
+</style>
+</head>
+
+<body>
+
+<!-- Lapisan visual: WebGL canvas (di-mount oleh 3d-hearts.js) -->
+<div id="scene-container" aria-hidden="true"></div>
+
+<!-- Lapisan visual fallback CSS — hanya terlihat saat body.webgl-off -->
+<div id="css-hearts" class="css-hearts" aria-hidden="true">
+  <span></span><span></span><span></span><span></span>
+  <span></span><span></span><span></span><span></span>
+</div>
+
+<main id="konten-utama">
+
+  <!-- ================= BOOT / LOADING ================= -->
+  <section id="screen-boot" class="screen" aria-label="Memuat">
+    <div class="boot-heart" aria-hidden="true">♥</div>
+    <p class="boot-title">Menyiapkan kejutan…</p>
+    <p class="boot-sub">Mohon tunggu sebentar. Jika terlalu lama, coba muat ulang halaman ini.</p>
+  </section>
+
+  <!-- ================= RECOVERY ================= -->
+  <section id="screen-recovery" class="screen" hidden aria-labelledby="recovery-title">
+    <div class="boot-heart" aria-hidden="true">♡</div>
+    <h1 id="recovery-title" class="recovery-title">Surat ini belum bisa dibuka</h1>
+    <p class="recovery-text">
+      Tautan mungkin tidak lengkap, data tidak ditemukan, atau koneksi sedang tidak baik.
+      Jangan khawatir — perasaan selalu bisa ditulis ulang.
+    </p>
+    <div class="recovery-actions">
+      <a class="btn btn-primary" href="create.html">Buat Deklarasi Baru</a>
+      <a class="btn btn-ghost" href="index.html">Kembali ke Beranda</a>
+    </div>
+  </section>
+
+  <!-- ================= GATEWAY (F-003) ================= -->
+  <section id="screen-gateway" class="screen" hidden aria-labelledby="gateway-label">
+    <p class="gateway-eyebrow">Ada sesuatu untukmu</p>
+    <p id="gateway-name" class="gateway-name"></p>
+    <button id="gateway-button" class="gateway-button" type="button" aria-label="Buka pengalaman. Tap to Open My Heart">
+      <span class="gateway-heart" aria-hidden="true">♥</span>
+      <span id="gateway-label" class="gateway-label">Tap to Open My Heart</span>
+    </button>
+    <p class="gateway-hint">Gunakan earphone untuk pengalaman terbaik 🎧</p>
+  </section>
+
+  <!-- ================= EXPERIENCE ================= -->
+  <section id="screen-experience" class="experience" hidden aria-label="Pengalaman romantis">
+
+    <header class="re-hero">
+      <p class="re-eyebrow">Sebuah pesan untukmu</p>
+      <h1 class="re-title">Untuk <span id="experience-name"></span></h1>
+      <p class="re-sub">Ada sesuatu yang ingin kusampaikan sejak lama…</p>
+    </header>
+
+    <!-- Foto kenangan (opsional — hanya tampil jika URL valid & berhasil dimuat) -->
+    <figure id="photo-frame" class="re-photo" hidden>
+      <img id="photo-img" alt="" loading="lazy" referrerpolicy="no-referrer">
+      <figcaption class="re-photo-caption">Salah satu kenangan favorit kita</figcaption>
+    </figure>
+
+    <!-- F-007: Special day counter -->
+    <section class="re-counter" aria-labelledby="counter-title">
+      <h2 id="counter-title" class="re-section-title">Perjalanan Kita</h2>
+      <p id="counter-label" class="counter-label">…</p>
+      <div class="counter-grid" role="timer" aria-live="off">
+        <div class="counter-cell">
+          <span id="counter-days" class="counter-value">–</span>
+          <span class="counter-unit">Hari</span>
+        </div>
+        <div class="counter-cell">
+          <span id="counter-hours" class="counter-value">–</span>
+          <span class="counter-unit">Jam</span>
+        </div>
+        <div class="counter-cell">
+          <span id="counter-minutes" class="counter-value">–</span>
+          <span class="counter-unit">Menit</span>
+        </div>
+        <div class="counter-cell">
+          <span id="counter-seconds" class="counter-value">–</span>
+          <span class="counter-unit">Detik</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- F-005: Pertanyaan YES / NO -->
+    <section class="re-question" aria-labelledby="question-heading">
+      <h2 id="question-heading" class="re-question-title" tabindex="-1">
+        Maukah kamu terus berjalan bersamaku?
+      </h2>
+      <p class="re-question-sub">Jawablah dengan jujur, dari hatimu.</p>
+      <div id="no-playground" class="no-playground">
+        <button id="btn-yes" class="btn btn-yes" type="button">Ya, Aku Mau ♥</button>
+        <button id="btn-no" class="btn btn-no" type="button">Tidak</button>
+      </div>
+    </section>
+
+    <footer class="re-footer">
+      <a href="index.html">Romance Engine</a>
+    </footer>
+  </section>
+
+</main>
+
+<!-- Toggle musik (muncul jika audio tersedia) -->
+<button id="btn-sound" class="sound-toggle" type="button" aria-pressed="false" hidden>
+  <span id="sound-toggle-label">Musik: Nyala</span>
+</button>
+
+<!-- ================= F-006: LOVE LETTER MODAL ================= -->
+<div id="letter-modal" role="dialog" aria-modal="true" aria-labelledby="letter-title" hidden>
+  <div id="letter-backdrop" class="letter-backdrop"></div>
+  <article id="letter-paper" class="letter-paper">
+    <header class="letter-head">
+      <h2 id="letter-title">Sebuah Surat Untukmu</h2>
+      <button id="letter-close" class="letter-close" type="button" aria-label="Tutup surat">✕</button>
+    </header>
+    <div id="letter-body" class="letter-body"></div>
+    <footer class="letter-sign">
+      <p>Dengan seluruh cinta,</p>
+      <p class="letter-from">— dari seseorang yang menyayangi <span id="letter-for"></span></p>
+    </footer>
+    <p id="letter-hint" class="letter-hint" hidden>Ketuk surat untuk menyelesaikan</p>
+  </article>
+</div>
+
+<noscript>
+  <div class="screen" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0D0208;color:#FDF2F6;z-index:99;">
+    <p>Experience ini membutuhkan JavaScript. Aktifkan JavaScript di browser kamu, lalu muat ulang halaman.</p>
+  </div>
+</noscript>
+
+<!-- ============ Dependency CDN (pinned; kegagalan tidak mematikan halaman) ============ -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+
+<!-- ============ Modul lokal (diimplementasikan terpisah sesuai kontrak) ============ -->
+<script src="assets/js/audio-player.js"></script>
+<script src="assets/js/3d-hearts.js"></script>
+<script src="assets/js/interactive.js"></script>
+
+<!-- ============ ORKESTRATOR VIEW ============ -->
+<script>
+(function () {
+  'use strict';
+
+  /* ---------------- Konfigurasi ---------------- */
+  var API_BASE = 'https://romance-engine.azrielspace852.workers.dev';
+  var FETCH_TIMEOUT_MS = 8000;
+  var DEFAULT_BGM_SRC = 'assets/audio/default-bgm.mp3';
+  var CHIME_SRC = 'assets/audio/success-chime.mp3';
+  var LIMITS = { name: 100, message: 10000, date: 64, url: 2048, dataParam: 400000 };
+  var TYPING_SPEED_MS = 18;
+
+  var prefersReducedMotion = false;
+  try {
+    prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  } catch (err) { /* aman: animasi penuh tetap di-guard per-fitur */ }
+
+  /* ---------------- Referensi DOM ---------------- */
+  var els = {
+    boot: document.getElementById('screen-boot'),
+    gateway: document.getElementById('screen-gateway'),
+    recovery: document.getElementById('screen-recovery'),
+    experience: document.getElementById('screen-experience'),
+    gatewayName: document.getElementById('gateway-name'),
+    gatewayButton: document.getElementById('gateway-button'),
+    experienceName: document.getElementById('experience-name'),
+    photoFrame: document.getElementById('photo-frame'),
+    photoImg: document.getElementById('photo-img'),
+    counterLabel: document.getElementById('counter-label'),
+    counterDays: document.getElementById('counter-days'),
+    counterHours: document.getElementById('counter-hours'),
+    counterMinutes: document.getElementById('counter-minutes'),
+    counterSeconds: document.getElementById('counter-seconds'),
+    questionHeading: document.getElementById('question-heading'),
+    noPlayground: document.getElementById('no-playground'),
+    yesButton: document.getElementById('btn-yes'),
+    noButton: document.getElementById('btn-no'),
+    soundToggle: document.getElementById('btn-sound'),
+    soundToggleLabel: document.getElementById('sound-toggle-label'),
+    sceneContainer: document.getElementById('scene-container'),
+    letterModal: document.getElementById('letter-modal'),
+    letterBackdrop: document.getElementById('letter-backdrop'),
+    letterPaper: document.getElementById('letter-paper'),
+    letterClose: document.getElementById('letter-close'),
+    letterBody: document.getElementById('letter-body'),
+    letterFor: document.getElementById('letter-for'),
+    letterHint: document.getElementById('letter-hint')
+  };
+
+  var state = {
+    payload: null,
+    source: null,
+    booted: false,
+    revealed: false,
+    celebrated: false,
+    scene: null,
+    sceneInitialized: false,
+    audio: null,
+    counterTimerId: null,
+    counterTarget: null,
+    typingTimerId: null,
+    typingParagraphs: [],
+    typingElements: [],
+    lastFocused: null
+  };
+
+  /* ---------------- Util dasar ---------------- */
+  function show(el) { if (el) el.hidden = false; }
+  function hide(el) { if (el) el.hidden = true; }
+
+  function showScreen(name) {
+    hide(els.boot); hide(els.gateway); hide(els.recovery); hide(els.experience);
+    if (name === 'boot') show(els.boot);
+    else if (name === 'gateway') show(els.gateway);
+    else if (name === 'recovery') show(els.recovery);
+    else if (name === 'experience') show(els.experience);
+  }
+
+  /* ---------------- Validasi payload (defense in depth) ---------------- */
+  function safeUrl(value) {
+    if (typeof value !== 'string') return null;
+    var candidate = value.trim();
+    if (candidate.length === 0) return null;
+    if (candidate.length > LIMITS.url) return null;
+    try {
+      var parsed = new URL(candidate);
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+      return parsed.toString();
+    } catch (err) {
+      return null;
+    }
+  }
+
+  function sanitizePayload(raw) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+
+    var name = typeof raw.recipientName === 'string' ? raw.recipientName.trim() : '';
+    var message = typeof raw.message === 'string' ? raw.message.trim() : '';
+    var specialDate = typeof raw.specialDate === 'string' ? raw.specialDate.trim() : '';
+
+    if (name.length === 0 || name.length > LIMITS.name) return null;
+    if (message.length === 0 || message.length > LIMITS.message) return null;
+    if (specialDate.length === 0 || specialDate.length > LIMITS.date) return null;
+
+    return {
+      id: typeof raw.id === 'string' ? raw.id.slice(0, 64) : '',
+      recipientName: name,
+      message: message,
+      specialDate: specialDate,
+      photoUrl: safeUrl(raw.photoUrl),
+      musicUrl: safeUrl(raw.musicUrl),
+      createdAt: typeof raw.createdAt === 'string' ? raw.createdAt : '',
+      version: typeof raw.version === 'number' ? raw.version : 1
+    };
+  }
+
+  /* ---------------- F-002: pipeline data ---------------- */
+  function fetchWithTimeout(url, ms) {
+    var controller = new AbortController();
+    var timer = setTimeout(function () { controller.abort(); }, ms);
+    return fetch(url, { signal: controller.signal, headers: { Accept: 'application/json' } })
+      .finally(function () { clearTimeout(timer); });
+  }
+
+  async function loadFromApi(id) {
+    var response = await fetchWithTimeout(API_BASE + '/api/get/' + encodeURIComponent(id), FETCH_TIMEOUT_MS);
+    if (!response.ok) {
+      throw new Error('API status ' + response.status);
+    }
+    var body = await response.json();
+    if (!body || body.ok !== true || !body.data || !body.data.payload) {
+      throw new Error('Struktur respons API tidak dikenal');
+    }
+    return body.data.payload;
+  }
+
+  function decodeBase64Utf8(input) {
+    var base64 = String(input).replace(/-/g, '+').replace(/_/g, '/').trim();
+    while (base64.length % 4 !== 0) base64 += '=';
+    var binary = atob(base64);
+    var bytes = new Uint8Array(binary.length);
+    for (var i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+    return new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+  }
+
+  async function resolvePayload() {
+    var params;
+    try {
+      params = new URLSearchParams(window.location.search);
+    } catch (err) {
+      return null;
+    }
+
+    var id = params.get('id');
+    var data = params.get('data');
+
+    // 1) Sumber utama: API + KV
+    if (id) {
+      try {
+        var apiPayload = await loadFromApi(id);
+        var validApi = sanitizePayload(apiPayload);
+        if (validApi) return { payload: validApi, source: 'api' };
+      } catch (err) {
+        console.warn('[RomanceEngine] API gagal, mencoba fallback base64.', err);
+      }
+    }
+
+    // 2) Fallback: ?data=BASE64
+    if (data && data.length <= LIMITS.dataParam) {
+      try {
+        var decoded = decodeBase64Utf8(data);
+        var parsed = JSON.parse(decoded);
+        var validFallback = sanitizePayload(parsed);
+        if (validFallback) return { payload: validFallback, source: 'fallback' };
+      } catch (err) {
+        console.warn('[RomanceEngine] Fallback base64 tidak valid.', err);
+      }
+    }
+
+    // 3) Semua sumber gagal -> recovery ditangani pemanggil
+    return null;
+  }
+
+  /* ---------------- Render konten statis (XSS-safe) ---------------- */
+  function renderStaticContent(payload) {
+    var name = payload.recipientName;
+
+    document.title = 'Untuk ' + name + ' ♥ Romance Engine';
+    els.gatewayName.textContent = 'Untuk ' + name;
+    els.experienceName.textContent = name;
+    els.letterFor.textContent = name;
+    els.photoImg.alt = 'Foto kenangan untuk ' + name;
+
+    if (payload.photoUrl) {
+      els.photoImg.addEventListener('load', function () { show(els.photoFrame); });
+      els.photoImg.addEventListener('error', function () {
+        hide(els.photoFrame);
+        console.warn('[RomanceEngine] Foto tidak dapat dimuat; experience dilanjutkan tanpa foto.');
+      });
+      els.photoImg.src = payload.photoUrl;
+    }
+  }
+
+  /* ---------------- F-007: special day counter (interval tunggal) ---------------- */
+  function padTwo(n) { return n < 10 ? '0' + n : String(n); }
+
+  function renderCounter() {
+    var target = state.counterTarget;
+    if (!target) {
+      els.counterLabel.textContent = 'Tanggal spesial tidak dapat dibaca.';
+      els.counterDays.textContent = '–';
+      els.counterHours.textContent = '–';
+      els.counterMinutes.textContent = '–';
+      els.counterSeconds.textContent = '–';
+      return;
+    }
+    var diff = Date.now() - target.getTime();
+    var future = diff < 0;
+    if (future) diff = -diff;
+
+    var totalSeconds = Math.floor(diff / 1000);
+    var days = Math.floor(totalSeconds / 86400);
+    var hours = Math.floor((totalSeconds % 86400) / 3600);
+    var minutes = Math.floor((totalSeconds % 3600) / 60);
+    var seconds = totalSeconds % 60;
+
+    els.counterLabel.textContent = future
+      ? 'Menghitung hari menuju momen spesial kalian'
+      : 'Kalian telah bersama selama';
+    els.counterDays.textContent = String(days);
+    els.counterHours.textContent = padTwo(hours);
+    els.counterMinutes.textContent = padTwo(minutes);
+    els.counterSeconds.textContent = padTwo(seconds);
+  }
+
+  function startCounter(specialDateStr) {
+    if (state.counterTimerId !== null) return; // cegah interval ganda
+
+    var parsed = new Date(specialDateStr);
+    state.counterTarget = Number.isNaN(parsed.getTime()) ? null : parsed;
+
+    renderCounter();
+
+    if (state.counterTarget) {
+      state.counterTimerId = window.setInterval(function () {
+        if (document.hidden) return; // hemat resource saat tab tidak aktif
+        renderCounter();
+      }, 1000);
+    }
+  }
+
+  /* ---------------- F-004: scene 3D + fallback CSS ---------------- */
+  function enableCssBackground() {
+    document.body.classList.add('webgl-off');
+  }
+
+  function initScene() {
+    if (state.sceneInitialized) return;
+    state.sceneInitialized = true;
+
+    try {
+      if (window.RomanceScene && typeof window.RomanceScene.init === 'function') {
+        var controller = window.RomanceScene.init(els.sceneContainer, {
+          reducedMotion: prefersReducedMotion
+        });
+        if (controller && typeof controller.start === 'function') {
+          state.scene = controller;
+          controller.start();
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('[RomanceEngine] WebGL scene gagal; memakai fallback CSS.', err);
+    }
+    enableCssBackground();
+  }
+
+  /* ---------------- F-003: audio ---------------- */
+  function initAudio() {
+    try {
+      if (window.RomanceAudio && typeof window.RomanceAudio.init === 'function') {
+        state.audio = window.RomanceAudio.init({
+          musicUrl: state.payload.musicUrl,
+          defaultBgmSrc: DEFAULT_BGM_SRC,
+          chimeSrc: CHIME_SRC
+        });
+        if (state.audio) {
+          show(els.soundToggle);
+          updateSoundToggleUI();
+        }
+      }
+    } catch (err) {
+      console.warn('[RomanceEngine] Audio tidak tersedia; experience dilanjutkan tanpa suara.', err);
+      state.audio = null;
+    }
+  }
+
+  function unlockAudio() {
+    if (!state.audio || typeof state.audio.unlock !== 'function') return;
+    try {
+      state.audio.unlock();
+    } catch (err) {
+      console.warn('[RomanceEngine] Unlock audio gagal; experience dilanjutkan tanpa suara.', err);
+    }
+  }
+
+  function updateSoundToggleUI() {
+    if (!state.audio) return;
+    var muted = !!state.audio.isMuted;
+    els.soundToggle.setAttribute('aria-pressed', muted ? 'true' : 'false');
+    els.soundToggleLabel.textContent = muted ? 'Musik: Mati' : 'Musik: Nyala';
+  }
+
+  /* ---------------- Gateway -> Experience ---------------- */
+  function openExperience() {
+    if (state.revealed) return;
+    state.revealed = true;
+
+    unlockAudio(); // harus dipanggil langsung di dalam user gesture
+
+    var finish = function () {
+      hide(els.gateway);
+      show(els.experience);
+      els.experience.classList.add('is-open');
+      startCounter(state.payload.specialDate);
+      initScene();
+      initInteraction();
+      try { els.questionHeading.focus({ preventScroll: true }); }
+      catch (err) { els.questionHeading.focus(); }
+    };
+
+    var gsapReady = window.gsap && typeof window.gsap.to === 'function';
+    if (gsapReady && !prefersReducedMotion) {
+      try {
+        window.gsap.to(els.gateway, {
+          opacity: 0,
+          scale: 1.04,
+          duration: 0.8,
+          ease: 'power2.inOut',
+          onComplete: function () {
+            try { window.gsap.set(els.gateway, { opacity: 1, scale: 1 }); } catch (e) {}
+            finish();
+          }
+        });
+        return;
+      } catch (err) {
+        console.warn('[RomanceEngine] Animasi GSAP gagal; memakai transisi CSS.', err);
+      }
+    }
+    finish();
+  }
+
+  /* ---------------- F-005: interaksi ---------------- */
+  function initInteraction() {
+    try {
+      if (window.RomanceInteractive && typeof window.RomanceInteractive.init === 'function') {
+        window.RomanceInteractive.init({
+          yesButton: els.yesButton,
+          noButton: els.noButton,
+          playground: els.noPlayground,
+          reducedMotion: prefersReducedMotion,
+          onYes: celebrateYes
+        });
+        return;
+      }
+    } catch (err) {
+      console.warn('[RomanceEngine] Modul interaksi gagal; memakai handler dasar.', err);
+    }
+    // Fallback minimal: YES tetap berfungsi tanpa modul interaksi
+    els.yesButton.addEventListener('click', celebrateYes);
+  }
+
+  /* ---------------- F-006: celebration ---------------- */
+  function fireConfetti() {
+    try {
+      if (typeof window.confetti !== 'function') return;
+      var colors = ['#FF8FB1', '#FF5E94', '#7DE8F5', '#FFF1F6'];
+      var power = prefersReducedMotion ? 0.4 : 1;
+      window.confetti({
+        particleCount: Math.round(90 * power),
+        spread: 75,
+        origin: { x: 0.5, y: 0.6 },
+        colors: colors,
+        zIndex: 9999
+      });
+      window.setTimeout(function () {
+        try {
+          if (typeof window.confetti !== 'function') return;
+          window.confetti({ particleCount: Math.round(50 * power), angle: 60, spread: 60, origin: { x: 0, y: 0.7 }, colors: colors, zIndex: 9999 });
+          window.confetti({ particleCount: Math.round(50 * power), angle: 120, spread: 60, origin: { x: 1, y: 0.7 }, colors: colors, zIndex: 9999 });
+        } catch (innerErr) {
+          console.warn('[RomanceEngine] Confetti lanjutan dilewati.', innerErr);
+        }
+      }, 300);
+    } catch (err) {
+      console.warn('[RomanceEngine] Confetti dilewati.', err);
+    }
+  }
+
+  function celebrateYes() {
+    if (state.celebrated) return;
+    state.celebrated = true;
+
+    try {
+      if (state.audio && typeof state.audio.playChime === 'function') state.audio.playChime();
+    } catch (err) {
+      console.warn('[RomanceEngine] Chime dilewati.', err);
+    }
+
+    fireConfetti();
+
+    try {
+      if (state.scene && typeof state.scene.celebrate === 'function') state.scene.celebrate();
+    } catch (err) {
+      console.warn('[RomanceEngine] Efek scene celebration dilewati.', err);
+    }
+
+    openLetterModal();
+  }
+
+  /* ---------------- Love letter + typing animation ---------------- */
+  function stopTyping() {
+    if (state.typingTimerId !== null) {
+      window.clearInterval(state.typingTimerId);
+      state.typingTimerId = null;
+    }
+  }
+
+  function fillLetterInstantly() {
+    stopTyping();
+    state.typingParagraphs.forEach(function (text, idx) {
+      var el = state.typingElements[idx];
+      if (el) el.textContent = text; // textContent = XSS-safe
+    });
+    hide(els.letterHint);
+  }
+
+  function startTyping(message) {
+    stopTyping();
+    els.letterBody.textContent = '';
+    state.typingElements = [];
+
+    var paragraphs = String(message)
+      .split(/\r?\n+/)
+      .map(function (s) { return s.trim(); })
+      .filter(function (s) { return s.length > 0; });
+
+    state.typingParagraphs = paragraphs;
+
+    paragraphs.forEach(function () {
+      var el = document.createElement('p');
+      els.letterBody.appendChild(el);
+      state.typingElements.push(el);
+    });
+
+    if (prefersReducedMotion) { fillLetterInstantly(); return; }
+
+    show(els.letterHint);
+    var pIdx = 0;
+    var cIdx = 0;
+    state.typingTimerId = window.setInterval(function () {
+      if (document.hidden) return;
+      if (pIdx >= paragraphs.length) { fillLetterInstantly(); return; }
+      cIdx += 1;
+      var current = paragraphs[pIdx];
+      state.typingElements[pIdx].textContent = current.slice(0, cIdx);
+      if (cIdx >= current.length) { pIdx += 1; cIdx = 0; }
+    }, TYPING_SPEED_MS);
+  }
+
+  function trapTabKey(event) {
+    var focusables = els.letterModal.querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    if (!focusables || focusables.length === 0) return;
+    var first = focusables[0];
+    var last = focusables[focusables.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
+  function onModalKeydown(event) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeLetterModal();
+      return;
+    }
+    if (event.key === 'Tab') trapTabKey(event);
+  }
+
+  function openLetterModal() {
+    state.lastFocused = document.activeElement;
+    show(els.letterModal);
+    document.body.classList.add('modal-open');
+    startTyping(state.payload.message);
+    document.addEventListener('keydown', onModalKeydown);
+    try { els.letterClose.focus({ preventScroll: true }); }
+    catch (err) { els.letterClose.focus(); }
+  }
+
+  function closeLetterModal() {
+    stopTyping();
+    hide(els.letterModal);
+    document.body.classList.remove('modal-open');
+    document.removeEventListener('keydown', onModalKeydown);
+    if (state.lastFocused && typeof state.lastFocused.focus === 'function') {
+      try { state.lastFocused.focus({ preventScroll: true }); }
+      catch (err) { state.lastFocused.focus(); }
+    }
+  }
+
+  /* ---------------- Event binding (sekali, tidak terduplikasi) ---------------- */
+  function bindEvents() {
+    els.gatewayButton.addEventListener('click', openExperience);
+
+    els.soundToggle.addEventListener('click', function () {
+      if (!state.audio || typeof state.audio.toggleMute !== 'function') return;
+      try {
+        state.audio.toggleMute();
+        updateSoundToggleUI();
+      } catch (err) {
+        console.warn('[RomanceEngine] Toggle audio gagal.', err);
+      }
+    });
+
+    els.letterClose.addEventListener('click', function (event) {
+      event.stopPropagation();
+      closeLetterModal();
+    });
+    els.letterBackdrop.addEventListener('click', closeLetterModal);
+    els.letterPaper.addEventListener('click', fillLetterInstantly);
+
+    window.addEventListener('pagehide', function () {
+      if (state.counterTimerId !== null) {
+        window.clearInterval(state.counterTimerId);
+        state.counterTimerId = null;
+      }
+      stopTyping();
+      try { if (state.scene && typeof state.scene.destroy === 'function') state.scene.destroy(); } catch (e) {}
+      try { if (state.audio && typeof state.audio.destroy === 'function') state.audio.destroy(); } catch (e) {}
+    });
+  }
+
+  /* ---------------- Bootstrap ---------------- */
+  async function init() {
+    if (state.booted) return;
+    state.booted = true;
+    bindEvents();
+
+    var result = await resolvePayload();
+
+    if (!result) {
+      showScreen('recovery');
+      return;
+    }
+
+    state.payload = result.payload;
+    state.source = result.source;
+
+    renderStaticContent(result.payload);
+    initAudio();
+    showScreen('gateway');
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () { init(); });
+  } else {
+    init();
+  }
+})();
+</script>
+</body>
+</html>

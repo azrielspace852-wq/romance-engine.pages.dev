@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<!--
+  ============================================================
+  Romance Engine V1 — public/create.html (Dynamic Form Generator)
+  ============================================================
+  Fitur: F-001 Dynamic Form Generator
+
+  Kontrak API (konsisten dengan src/index.js):
+    POST {API_BASE}/api/save
+    Body : { recipientName, message, specialDate, photoUrl, musicUrl }
+    201  : { ok: true,  data: { id, viewUrl, payload } }
+    4xx/5xx: { ok: false, error: { code, message, details? } }
+
+  Fallback (sesuai spesifikasi §10):
+    Jika API gagal, client membangun URL view.html?data=BASE64
+    dari data form yang valid, sehingga user tetap mendapat
+    tautan yang dapat dibagikan. Data form TIDAK pernah hilang.
+
+  Keamanan:
+    - Semua input dianggap untrusted; validasi client-side + server-side.
+    - Tidak ada innerHTML dengan konten user (XSS-safe).
+    - URL hanya http/https (javascript:/data: diblokir).
+    - Encoding base64 UTF-8 aman.
+-->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0D0208">
+<title>Buat Deklarasi Cinta ♥ Romance Engine</title>
+<meta name="description" content="Tulis deklarasi cintamu dan dapatkan tautan sinematik untuk pasanganmu.">
+<link rel="canonical" href="https://romance-engine.pages.dev/create.html">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23FF5E94' d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'/%3E%3C/svg%3E">
+
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/css/playfair-display@latest/latin-700-normal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/css/playfair-display@latest/latin-500-italic.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/css/manrope@latest/latin-400-normal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/css/manrope@latest/latin-600-normal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/css/manrope@latest/latin-700-normal.css">
+
+<!-- Shared stylesheet (opsional; critical CSS inline di bawah menjamin
+     form tetap usable meskipun file ini gagal dimuat). -->
+<link rel="stylesheet" href="assets/css/style.css">
+
+<style>
+/* ================= Design tokens ================= */
+:root {
+  color-scheme: dark;
+  --obsidian: #0D0208;
+  --deep-crimson: #1A000C;
+  --ink: #FDF2F6;
+  --ink-dim: rgba(253, 242, 246, 0.74);
+  --ink-faint: rgba(253, 242, 246, 0.5);
+  --pink: #FF8FB1;
+  --pink-strong: #FF5E94;
+  --pink-deep: #F43F7F;
+  --cyan: #7DE8F5;
+  --glass-bg: rgba(255, 255, 255, 0.045);
+  --glass-border: rgba(255, 255, 255, 0.10);
+  --radius-lg: 22px;
+  --radius-md: 14px;
+  --font-display: "Playfair Display", Georgia, "Times New Roman", serif;
+  --font-body: "Manrope", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.65;
+  color: var(--ink);
+  background-color: var(--obsidian);
+  background-image:
+    radial-gradient(1100px 700px at 82% -8%, rgba(244, 63, 127, 0.13), transparent 62%),
+    radial-gradient(800px 600px at 4% 14%, rgba(125, 232, 245, 0.06), transparent 58%),
+    radial-gradient(900px 700px at 50% 118%, rgba(122, 16, 62, 0.40), transparent 62%);
+  min-height: 100vh;
+  min-height: 100svh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+img, svg { display: block; max-width: 100%; }
+[hidden] { display: none !important; }
+::selection { background: rgba(255, 94, 148, 0.45); color: #fff; }
+
+.container {
+  width: min(720px, 100% - 2rem);
+  margin-inline: auto;
+}
+
+/* ================= Aksesibilitas ================= */
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: -3.5rem;
+  z-index: 80;
+  background: var(--deep-crimson);
+  color: var(--ink);
+  padding: 0.65rem 1.1rem;
+  border-radius: 12px;
+  border: 1px solid var(--glass-border);
+  text-decoration: none;
+  font-weight: 600;
+  transition: top 0.2s ease;
+}
+.skip-link:focus { top: 1rem; }
+
+a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+/* ================= Header ================= */
+.site-header {
+  padding: calc(1.15rem + env(safe-area-inset-top, 0px)) 0 1rem;
+}
+.header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.18rem;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  text-decoration: none;
+}
+.brand svg {
+  width: 22px;
+  height: 22px;
+  color: var(--pink-strong);
+  filter: drop-shadow(0 0 10px rgba(255, 94, 148, 0.55));
+}
+.main-nav { display: flex; align-items: center; gap: 1.5rem; }
+.main-nav a {
+  color: var(--ink-dim);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: color 0.2s ease;
+}
+.main-nav a:hover { color: var(--pink); }
+.main-nav a[aria-current="page"] { color: var(--pink); }
+
+/* ================= Page heading ================= */
+.page-head {
+  text-align: center;
+  padding: 2.5rem 0 2rem;
+  display: grid;
+  gap: 0.75rem;
+  justify-items: center;
+}
+.page-head h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.9rem, 3vw + 0.9rem, 2.8rem);
+  line-height: 1.15;
+  text-wrap: balance;
+}
+.page-head h1 em {
+  font-style: italic;
+  font-weight: 500;
+  background: linear-gradient(100deg, #FFB3C9 5%, #FF5E94 55%, #8FE9F7 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+.page-sub {
+  margin: 0;
+  color: var(--ink-dim);
+  max-width: 520px;
+}
+
+/* ================= Form card ================= */
+.form-card {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: clamp(1.5rem, 4vw, 2.5rem);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+}
+.form-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  pointer-events: none;
+}
+
+.form-grid { display: grid; gap: 1.5rem; }
+
+.field { display: grid; gap: 0.45rem; }
+.field-label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+label {
+  font-weight: 700;
+  font-size: 0.98rem;
+  color: var(--ink);
+}
+label .req { color: var(--pink-strong); margin-left: 2px; }
+.optional-tag {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink-faint);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.char-count {
+  font-size: 0.82rem;
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+  transition: color 0.2s ease;
+}
+.char-count.warn { color: #FFC971; }
+.char-count.over { color: var(--pink-strong); font-weight: 700; }
+
+input[type="text"],
+input[type="date"],
+input[type="url"],
+textarea {
+  width: 100%;
+  background: rgba(13, 2, 8, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius-md);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  padding: 0.85rem 1rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  -webkit-appearance: none;
+  appearance: none;
+}
+textarea {
+  resize: vertical;
+  min-height: 160px;
+  line-height: 1.7;
+}
+input::placeholder, textarea::placeholder { color: var(--ink-faint); }
+input:focus, textarea:focus {
+  outline: none;
+  border-color: rgba(255, 143, 177, 0.65);
+  box-shadow: 0 0 0 3px rgba(255, 94, 148, 0.22);
+}
+input[aria-invalid="true"], textarea[aria-invalid="true"] {
+  border-color: rgba(255, 94, 148, 0.8);
+  box-shadow: 0 0 0 3px rgba(255, 94, 148, 0.18);
+}
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.85);
+  cursor: pointer;
+}
+
+.field-hint {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--ink-faint);
+}
+.field-error {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--pink-strong);
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+}
+.field-error::before { content: "⚠"; flex: none; }
+
+/* ================= Tombol ================= */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  min-height: 48px;
+  padding: 0.9rem 1.7rem;
+  border-radius: 999px;
+  border: none;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease, border-color 0.25s ease, opacity 0.2s ease;
+}
+.btn svg { width: 18px; height: 18px; flex: none; }
+.btn-primary {
+  color: #33061A;
+  background: linear-gradient(135deg, #FFC1D4 0%, #FF5E94 55%, #FF8FD0 100%);
+  box-shadow: 0 10px 34px rgba(255, 94, 148, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 46px rgba(255, 94, 148, 0.48), inset 0 0 0 1px rgba(255, 255, 255, 0.45);
+}
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+.btn-ghost {
+  color: var(--ink);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.btn-ghost:hover { transform: translateY(-2px); border-color: rgba(255, 143, 177, 0.5); }
+.btn-block { width: 100%; }
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid rgba(51, 6, 26, 0.35);
+  border-top-color: #33061A;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ================= Alert global ================= */
+.form-alert {
+  border-radius: var(--radius-md);
+  padding: 1rem 1.15rem;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  border: 1px solid;
+  display: grid;
+  gap: 0.35rem;
+}
+.form-alert.error {
+  background: rgba(255, 94, 148, 0.10);
+  border-color: rgba(255, 94, 148, 0.4);
+  color: var(--ink);
+}
+.form-alert strong { color: var(--pink-strong); }
+
+/* ================= Success panel ================= */
+.success-panel {
+  display: grid;
+  gap: 1.25rem;
+  text-align: center;
+  justify-items: center;
+}
+.success-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, rgba(255, 143, 177, 0.2), rgba(125, 232, 245, 0.15));
+  border: 1px solid rgba(255, 143, 177, 0.4);
+  color: var(--pink-strong);
+  box-shadow: 0 0 40px rgba(255, 94, 148, 0.3);
+}
+.success-icon svg { width: 30px; height: 30px; }
+.success-panel h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 2.5vw + 0.8rem, 2.2rem);
+  font-weight: 700;
+}
+.success-panel p { margin: 0; color: var(--ink-dim); max-width: 520px; }
+
+.url-box {
+  width: 100%;
+  background: rgba(13, 2, 8, 0.6);
+  border: 1px solid rgba(255, 143, 177, 0.35);
+  border-radius: var(--radius-md);
+  padding: 0.8rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.url-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.92rem;
+  color: var(--cyan);
+  word-break: break-all;
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+}
+.url-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+.btn-sm { min-height: 44px; padding: 0.55rem 1.2rem; font-size: 0.92rem; }
+
+.fallback-note {
+  font-size: 0.88rem;
+  color: var(--ink-faint);
+  margin: 0;
+  max-width: 560px;
+}
+.fallback-note.warn { color: #FFC971; }
+
+/* ================= Footer ================= */
+.site-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(13, 2, 8, 0.6);
+  padding: 2.5rem 0 calc(2rem + env(safe-area-inset-bottom, 0px));
+  margin-top: 4rem;
+  text-align: center;
+}
+.footer-inner { display: grid; gap: 0.9rem; justify-items: center; }
+.footer-brand {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+}
+.footer-brand svg { width: 18px; height: 18px; color: var(--pink-strong); }
+.footer-nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 1.6rem; }
+.footer-nav a { color: var(--ink-dim); text-decoration: none; font-size: 0.95rem; }
+.footer-nav a:hover { color: var(--pink); }
+.copyright { margin: 0; color: var(--ink-faint); font-size: 0.85rem; }
+.heart-inline { color: var(--pink-strong); }
+
+/* ================= Responsive ================= */
+@media (max-width: 640px) {
+  .main-nav a:not(.brand-link) { display: none; }
+  .url-actions { width: 100%; }
+  .url-actions .btn { flex: 1 1 auto; }
+}
+
+/* ================= Reduced motion ================= */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+</style>
+</head>
+
+<body>
+<a class="skip-link" href="#konten-utama">Langsung ke konten utama</a>
+
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="index.html">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
+        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+      </svg>
+      Romance Engine
+    </a>
+    <nav class="main-nav" aria-label="Navigasi utama">
+      <a href="index.html">Beranda</a>
+      <a href="create.html" aria-current="page">Buat Deklarasi</a>
+    </nav>
+  </div>
+</header>
+
+<main id="konten-utama">
+  <div class="container">
+
+    <div class="page-head">
+      <h1>Tulis <em>deklarasi cintamu</em></h1>
+      <p class="page-sub">Isi detail di bawah ini. Kami akan merangkainya menjadi satu tautan sinematik yang siap kamu kirimkan untuknya.</p>
+    </div>
+
+    <!-- ================= FORM (F-001) ================= -->
+    <section id="form-section" aria-labelledby="form-heading">
+      <h2 id="form-heading" class="skip-link" style="position:absolute;left:-9999px;">Form deklarasi cinta</h2>
+
+      <div class="form-card">
+        <!-- Alert global (aria-live agar pembaca layar mendengar) -->
+        <div id="form-alert" class="form-alert error" role="alert" hidden></div>
+
+        <form id="create-form" class="form-grid" novalidate>
+
+          <!-- Nama pasangan -->
+          <div class="field">
+            <div class="field-label-row">
+              <label for="recipientName">Nama Pasangan <span class="req" aria-hidden="true">*</span></label>
+              <span id="name-count" class="char-count" aria-hidden="true">0/100</span>
+            </div>
+            <input
+              type="text"
+              id="recipientName"
+              name="recipientName"
+              maxlength="100"
+              required
+              autocomplete="off"
+              placeholder="Contoh: Aisyah"
+              aria-describedby="recipientName-hint recipientName-error"
+            >
+            <p id="recipientName-hint" class="field-hint">Nama yang akan tampil di layar experience.</p>
+            <p id="recipientName-error" class="field-error" hidden></p>
+          </div>
+
+          <!-- Pesan deklarasi -->
+          <div class="field">
+            <div class="field-label-row">
+              <label for="message">Pesan Deklarasi <span class="req" aria-hidden="true">*</span></label>
+              <span id="message-count" class="char-count" aria-hidden="true">0/10000</span>
+            </div>
+            <textarea
+              id="message"
+              name="message"
+              maxlength="10000"
+              required
+              placeholder="Tulis perasaanmu di sini… kamu bisa menekan Enter untuk membuat baris baru."
+              aria-describedby="message-hint message-error"
+            ></textarea>
+            <p id="message-hint" class="field-hint">Pesan multi-paragraf. Akan ditampilkan sebagai surat cinta dengan animasi mengetik.</p>
+            <p id="message-error" class="field-error" hidden></p>
+          </div>
+
+          <!-- Tanggal spesial -->
+          <div class="field">
+            <div class="field-label-row">
+              <label for="specialDate">Tanggal Spesial / Jadian <span class="req" aria-hidden="true">*</span></label>
+            </div>
+            <input
+              type="date"
+              id="specialDate"
+              name="specialDate"
+              required
+              aria-describedby="specialDate-hint specialDate-error"
+            >
+            <p id="specialDate-hint" class="field-hint">Tanggal jadian atau momen spesial kalian. Dipakai untuk penghitung hari real-time.</p>
+            <p id="specialDate-error" class="field-error" hidden></p>
+          </div>
+
+          <!-- URL foto -->
+          <div class="field">
+            <div class="field-label-row">
+              <label for="photoUrl">URL Foto Kenangan</label>
+              <span class="optional-tag">Opsional</span>
+            </div>
+            <input
+              type="url"
+              id="photoUrl"
+              name="photoUrl"
+              maxlength="2048"
+              autocomplete="off"
+              placeholder="https://contoh.com/foto-kita.jpg"
+              inputmode="url"
+              aria-describedby="photoUrl-hint photoUrl-error"
+            >
+            <p id="photoUrl-hint" class="field-hint">Tempel URL gambar publik (jpg/png/webp). Jika gagal dimuat, experience tetap berjalan tanpa foto.</p>
+            <p id="photoUrl-error" class="field-error" hidden></p>
+          </div>
+
+          <!-- URL musik -->
+          <div class="field">
+            <div class="field-label-row">
+              <label for="musicUrl">URL Musik Latar</label>
+              <span class="optional-tag">Opsional</span>
+            </div>
+            <input
+              type="url"
+              id="musicUrl"
+              name="musicUrl"
+              maxlength="2048"
+              autocomplete="off"
+              placeholder="https://contoh.com/lagu-kita.mp3"
+              inputmode="url"
+              aria-describedby="musicUrl-hint musicUrl-error"
+            >
+            <p id="musicUrl-hint" class="field-hint">Tempel URL file audio publik (mp3 disarankan). Jika gagal, musik default akan digunakan.</p>
+            <p id="musicUrl-error" class="field-error" hidden></p>
+          </div>
+
+          <!-- Submit -->
+          <button id="submit-btn" class="btn btn-primary btn-block" type="submit">
+            <span id="submit-label">Buat Deklarasi Cinta</span>
+            <svg id="submit-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
+              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+            </svg>
+          </button>
+
+        </form>
+      </div>
+    </section>
+
+    <!-- ================= SUCCESS PANEL ================= -->
+    <section id="success-section" class="form-card success-panel" hidden aria-labelledby="success-heading">
+      <div class="success-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false">
+          <path d="M20 6L9 17l-5-5"/>
+        </svg>
+      </div>
+
+      <h2 id="success-heading">Deklarasimu Sudah Siap ♥</h2>
+      <p id="success-description">Salin tautan di bawah ini dan kirimkan untuknya. Saat ia membuka tautan itu, experience romantis akan menantinya.</p>
+
+      <div class="url-box">
+        <span id="result-url" class="url-text"></span>
+        <div class="url-actions">
+          <button id="copy-btn" class="btn btn-primary btn-sm" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+            <span id="copy-label">Salin</span>
+          </button>
+          <button id="share-btn" class="btn btn-ghost btn-sm" type="button" hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98"/>
+            </svg>
+            Bagikan
+          </button>
+          <a id="open-btn" class="btn btn-ghost btn-sm" href="#" target="_blank" rel="noopener noreferrer">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/>
+            </svg>
+            Buka
+          </a>
+        </div>
+      </div>
+
+      <p id="fallback-note" class="fallback-note" hidden></p>
+
+      <button id="create-another-btn" class="btn btn-ghost btn-sm" type="button">Buat Deklarasi Lagi</button>
+
+      <!-- Status live region untuk feedback copy/share -->
+      <div id="action-status" role="status" aria-live="polite" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden;"></div>
+    </section>
+
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <p class="footer-brand">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
+        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+      </svg>
+      Romance Engine
+    </p>
+    <nav class="footer-nav" aria-label="Navigasi footer">
+      <a href="index.html">Beranda</a>
+      <a href="create.html" aria-current="page">Buat Deklarasi</a>
+    </nav>
+    <p class="copyright">Romance Engine V1 · Dibangun dengan <span class="heart-inline" aria-hidden="true">♥</span> di Cloudflare Pages &amp; Workers</p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ============================================================
+   * KONFIGURASI — konsisten dengan src/index.js dan view.html
+   * ============================================================ */
+  var API_BASE = 'https://romance-engine.azrielspace852.workers.dev';
+  var SAVE_ENDPOINT = API_BASE + '/api/save';
+  var VIEW_PAGE = 'view.html';
+  var FETCH_TIMEOUT_MS = 10000;
+
+  var LIMITS = {
+    name: 100,
+    message: 10000,
+    date: 64,
+    url: 2048
+  };
+
+  /* ============================================================
+   * REFERENSI DOM
+   * ============================================================ */
+  var els = {
+    form: document.getElementById('create-form'),
+    formSection: document.getElementById('form-section'),
+    formAlert: document.getElementById('form-alert'),
+    submitBtn: document.getElementById('submit-btn'),
+    submitLabel: document.getElementById('submit-label'),
+    submitIcon: document.getElementById('submit-icon'),
+
+    recipientName: document.getElementById('recipientName'),
+    nameCount: document.getElementById('name-count'),
+    recipientNameError: document.getElementById('recipientName-error'),
+
+    message: document.getElementById('message'),
+    messageCount: document.getElementById('message-count'),
+    messageError: document.getElementById('message-error'),
+
+    specialDate: document.getElementById('specialDate'),
+    specialDateError: document.getElementById('specialDate-error'),
+
+    photoUrl: document.getElementById('photoUrl'),
+    photoUrlError: document.getElementById('photoUrl-error'),
+
+    musicUrl: document.getElementById('musicUrl'),
+    musicUrlError: document.getElementById('musicUrl-error'),
+
+    successSection: document.getElementById('success-section'),
+    successDescription: document.getElementById('success-description'),
+    resultUrl: document.getElementById('result-url'),
+    copyBtn: document.getElementById('copy-btn'),
+    copyLabel: document.getElementById('copy-label'),
+    shareBtn: document.getElementById('share-btn'),
+    openBtn: document.getElementById('open-btn'),
+    fallbackNote: document.getElementById('fallback-note'),
+    createAnotherBtn: document.getElementById('create-another-btn'),
+    actionStatus: document.getElementById('action-status')
+  };
+
+  var state = {
+    submitting: false,
+    finalUrl: '',
+    usedFallback: false
+  };
+
+  /* ============================================================
+   * UTIL
+   * ============================================================ */
+
+  function show(el) { if (el) el.hidden = false; }
+  function hide(el) { if (el) el.hidden = true; }
+
+  function setText(el, text) {
+    if (el) el.textContent = text;
+  }
+
+  /**
+   * Validasi URL: hanya http/https yang diizinkan.
+   * Return string URL ternormalisasi, atau null jika kosong/invalid.
+   */
+  function validateUrl(value, maxLen) {
+    if (typeof value !== 'string') return null;
+    var candidate = value.trim();
+    if (candidate.length === 0) return null;
+    if (candidate.length > maxLen) return { error: 'URL terlalu panjang.' };
+    try {
+      var parsed = new URL(candidate);
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        return { error: 'URL harus menggunakan http atau https.' };
+      }
+      return parsed.toString();
+    } catch (err) {
+      return { error: 'Format URL tidak valid.' };
+    }
+  }
+
+  /**
+   * Encode string UTF-8 ke base64 URL-safe (tanpa padding issue).
+   * Menggunakan TextEncoder untuk menjamin UTF-8 benar.
+   */
+  function encodeBase64Utf8(str) {
+    var bytes = new TextEncoder().encode(str);
+    var binary = '';
+    for (var i = 0; i < bytes.length; i += 1) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    var b64 = btoa(binary);
+    // URL-safe: ganti +/ dan hapus padding
+    return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  /**
+   * Set error pada field tertentu.
+   */
+  function setFieldError(inputEl, errorEl, msg) {
+    if (msg) {
+      inputEl.setAttribute('aria-invalid', 'true');
+      setText(errorEl, msg);
+      show(errorEl);
+    } else {
+      inputEl.removeAttribute('aria-invalid');
+      setText(errorEl, '');
+      hide(errorEl);
+    }
+  }
+
+  function showGlobalAlert(msg) {
+    setText(els.formAlert, msg);
+    show(els.formAlert);
+    els.formAlert.focus();
+  }
+
+  function hideGlobalAlert() {
+    hide(els.formAlert);
+    setText(els.formAlert, '');
+  }
+
+  function setLoading(isLoading) {
+    state.submitting = isLoading;
+    els.submitBtn.disabled = isLoading;
+    if (isLoading) {
+      setText(els.submitLabel, 'Menyimpan…');
+      hide(els.submitIcon);
+      var spinner = document.createElement('span');
+      spinner.className = 'spinner';
+      spinner.setAttribute('aria-hidden', 'true');
+      spinner.id = 'submit-spinner';
+      els.submitBtn.insertBefore(spinner, els.submitLabel);
+    } else {
+      setText(els.submitLabel, 'Buat Deklarasi Cinta');
+      show(els.submitIcon);
+      var sp = document.getElementById('submit-spinner');
+      if (sp) sp.remove();
+    }
+  }
+
+  /* ============================================================
+   * CHARACTER COUNTERS
+   * ============================================================ */
+  function updateCounter(inputEl, countEl, max) {
+    var len = inputEl.value.length;
+    setText(countEl, len + '/' + max);
+    countEl.classList.remove('warn', 'over');
+    if (len >= max) {
+      countEl.classList.add('over');
+    } else if (len >= max * 0.9) {
+      countEl.classList.add('warn');
+    }
+  }
+
+  els.recipientName.addEventListener('input', function () {
+    updateCounter(els.recipientName, els.nameCount, LIMITS.name);
+  });
+  els.message.addEventListener('input', function () {
+    updateCounter(els.message, els.messageCount, LIMITS.message);
+  });
+
+  /* ============================================================
+   * CLIENT-SIDE VALIDATION
+   * ============================================================ */
+  function validateForm() {
+    var valid = true;
+
+    // Nama
+    var name = els.recipientName.value.trim();
+    if (name.length === 0) {
+      setFieldError(els.recipientName, els.recipientNameError, 'Nama pasangan wajib diisi.');
+      valid = false;
+    } else if (name.length > LIMITS.name) {
+      setFieldError(els.recipientName, els.recipientNameError, 'Nama maksimal ' + LIMITS.name + ' karakter.');
+      valid = false;
+    } else {
+      setFieldError(els.recipientName, els.recipientNameError, null);
+    }
+
+    // Pesan
+    var msg = els.message.value.trim();
+    if (msg.length === 0) {
+      setFieldError(els.message, els.messageError, 'Pesan deklarasi wajib diisi.');
+      valid = false;
+    } else if (msg.length > LIMITS.message) {
+      setFieldError(els.message, els.messageError, 'Pesan maksimal ' + LIMITS.message + ' karakter.');
+      valid = false;
+    } else {
+      setFieldError(els.message, els.messageError, null);
+    }
+
+    // Tanggal
+    var dateVal = els.specialDate.value.trim();
+    if (dateVal.length === 0) {
+      setFieldError(els.specialDate, els.specialDateError, 'Tanggal spesial wajib diisi.');
+      valid = false;
+    } else if (isNaN(new Date(dateVal).getTime())) {
+      setFieldError(els.specialDate, els.specialDateError, 'Tanggal tidak valid.');
+      valid = false;
+    } else {
+      setFieldError(els.specialDate, els.specialDateError, null);
+    }
+
+    // Photo URL
+    var photoResult = validateUrl(els.photoUrl.value, LIMITS.url);
+    if (photoResult && typeof photoResult === 'object' && photoResult.error) {
+      setFieldError(els.photoUrl, els.photoUrlError, photoResult.error);
+      valid = false;
+    } else {
+      setFieldError(els.photoUrl, els.photoUrlError, null);
+    }
+
+    // Music URL
+    var musicResult = validateUrl(els.musicUrl.value, LIMITS.url);
+    if (musicResult && typeof musicResult === 'object' && musicResult.error) {
+      setFieldError(els.musicUrl, els.musicUrlError, musicResult.error);
+      valid = false;
+    } else {
+      setFieldError(els.musicUrl, els.musicUrlError, null);
+    }
+
+    return valid;
+  }
+
+  function collectPayload() {
+    var photoResult = validateUrl(els.photoUrl.value, LIMITS.url);
+    var musicResult = validateUrl(els.musicUrl.value, LIMITS.url);
+
+    return {
+      recipientName: els.recipientName.value.trim(),
+      message: els.message.value.trim(),
+      specialDate: els.specialDate.value.trim(),
+      photoUrl: (typeof photoResult === 'string') ? photoResult : null,
+      musicUrl: (typeof musicResult === 'string') ? musicResult : null
+    };
+  }
+
+  /* ============================================================
+   * SUBMIT HANDLER
+   * ============================================================ */
+  function fetchWithTimeout(url, options, ms) {
+    var controller = new AbortController();
+    var timer = setTimeout(function () { controller.abort(); }, ms);
+    return fetch(url, Object.assign({}, options, { signal: controller.signal }))
+      .finally(function () { clearTimeout(timer); });
+  }
+
+  async function submitToApi(payload) {
+    var response = await fetchWithTimeout(SAVE_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(payload)
+    }, FETCH_TIMEOUT_MS);
+
+    var body = null;
+    try {
+      body = await response.json();
+    } catch (err) {
+      // Body bukan JSON — perlakukan sebagai error generic
+    }
+
+    if (response.ok && body && body.ok === true && body.data && body.data.viewUrl) {
+      return { success: true, viewUrl: body.data.viewUrl, id: body.data.id };
+    }
+
+    // Extract pesan error dari server jika tersedia
+    var serverMsg = '';
+    if (body && body.error && typeof body.error.message === 'string') {
+      serverMsg = body.error.message;
+    }
+    return { success: false, status: response.status, serverMessage: serverMsg };
+  }
+
+  /**
+   * Bangun fallback URL base64 dari payload.
+   * Dipanggil hanya jika API gagal.
+   */
+  function buildFallbackUrl(payload) {
+    try {
+      var json = JSON.stringify(payload);
+      var encoded = encodeBase64Utf8(json);
+      var url = VIEW_PAGE + '?data=' + encodeURIComponent(encoded);
+      return url;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  function showSuccess(viewUrl, isFallback, noteMsg) {
+    state.finalUrl = viewUrl;
+    state.usedFallback = isFallback;
+
+    setText(els.resultUrl, viewUrl);
+    els.openBtn.href = viewUrl;
+
+    // Tampilkan tombol share hanya jika Web Share API tersedia
+    if (navigator.share) {
+      show(els.shareBtn);
+    } else {
+      hide(els.shareBtn);
+    }
+
+    // Catatan fallback
+    if (noteMsg) {
+      setText(els.fallbackNote, noteMsg);
+      show(els.fallbackNote);
+    } else {
+      hide(els.fallbackNote);
+    }
+
+    hide(els.formSection);
+    show(els.successSection);
+
+    // Fokus ke heading sukses agar screen reader langsung membaca
+    document.getElementById('success-heading').setAttribute('tabindex', '-1');
+    document.getElementById('success-heading').focus();
+  }
+
+  els.form.addEventListener('submit', function (event) {
+    event.preventDefault();
+    if (state.submitting) return;
+
+    hideGlobalAlert();
+
+    if (!validateForm()) {
+      // Fokus ke field pertama yang error
+      var firstInvalid = els.form.querySelector('[aria-invalid="true"]');
+      if (firstInvalid) firstInvalid.focus();
+      return;
+    }
+
+    var payload = collectPayload();
+    setLoading(true);
+
+    submitToApi(payload)
+      .then(function (result) {
+        setLoading(false);
+        if (result.success) {
+          showSuccess(result.viewUrl, false, null);
+        } else {
+          // API gagal — coba fallback base64
+          var fallbackUrl = buildFallbackUrl(payload);
+          if (fallbackUrl) {
+            var note = 'Server sedang tidak dapat menyimpan deklarasi. Tautan di atas dibuat langsung dari browser kamu (mode offline) dan tetap berfungsi penuh.';
+            showSuccess(fallbackUrl, true, note);
+          } else {
+            showGlobalAlert('Terjadi kesalahan tak terduga. Data form kamu tetap aman — silakan coba lagi.');
+          }
+        }
+      })
+      .catch(function (err) {
+        setLoading(false);
+        var fallbackUrl = buildFallbackUrl(payload);
+        if (fallbackUrl) {
+          var note = 'Tidak dapat terhubung ke server. Tautan di atas dibuat langsung dari browser kamu (mode offline) dan tetap berfungsi penuh.';
+          showSuccess(fallbackUrl, true, note);
+        } else {
+          showGlobalAlert('Tidak dapat terhubung ke server. Data form kamu tetap aman — silakan coba lagi.');
+        }
+      });
+  });
+
+  /* ============================================================
+   * COPY & SHARE
+   * ============================================================ */
+  function announce(msg) {
+    setText(els.actionStatus, msg);
+    // Reset setelah beberapa detik agar bisa di-announce lagi
+    setTimeout(function () { setText(els.actionStatus, ''); }, 4000);
+  }
+
+  function resetCopyLabel() {
+    setText(els.copyLabel, 'Salin');
+  }
+
+  async function copyToClipboard(text) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch (err) {
+      // Fallback ke execCommand
+    }
+    // Fallback: textarea + execCommand
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      ta.style.top = '-9999px';
+      ta.setAttribute('readonly', '');
+      document.body.appendChild(ta);
+      ta.select();
+      var ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      return ok;
+    } catch (err) {
+      return false;
+    }
+  }
+
+  els.copyBtn.addEventListener('click', function () {
+    if (!state.finalUrl) return;
+    copyToClipboard(state.finalUrl).then(function (ok) {
+      if (ok) {
+        setText(els.copyLabel, 'Tersalin!');
+        announce('Tautan berhasil disalin ke clipboard.');
+        setTimeout(resetCopyLabel, 2500);
+      } else {
+        setText(els.copyLabel, 'Gagal');
+        announce('Gagal menyalin. Silakan salin tautan secara manual.');
+        setTimeout(resetCopyLabel, 2500);
+      }
+    });
+  });
+
+  els.shareBtn.addEventListener('click', function () {
+    if (!state.finalUrl || !navigator.share) return;
+    navigator.share({
+      title: 'Untukmu ♥ — Romance Engine',
+      text: 'Ada sesuatu yang ingin kusampaikan untukmu…',
+      url: state.finalUrl
+    }).then(function () {
+      announce('Berhasil dibagikan.');
+    }).catch(function (err) {
+      // User membatalkan share — bukan error, cukup diamkan
+      if (err && err.name !== 'AbortError') {
+        announce('Berbagi dibatalkan.');
+      }
+    });
+  });
+
+  /* ============================================================
+   * CREATE ANOTHER
+   * ============================================================ */
+  els.createAnotherBtn.addEventListener('click', function () {
+    els.form.reset();
+    updateCounter(els.recipientName, els.nameCount, LIMITS.name);
+    updateCounter(els.message, els.messageCount, LIMITS.message);
+    hideGlobalAlert();
+    hide(els.successSection);
+    show(els.formSection);
+    els.recipientName.focus();
+  });
+
+})();
+</script>
+</body>
+</html>

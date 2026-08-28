@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<!--
+  ============================================================
+  Romance Engine V1 — public/index.html (Landing Page)
+  ============================================================
+  Dokumentasi keputusan teknis (NN-007):
+  1. Halaman ini self-contained: seluruh gaya landing ditulis
+     inline di dalam <style> sehingga tetap berfungsi penuh
+     bahkan jika aset lain gagal dimuat, dan tidak bergantung
+     pada style.css yang dipakai halaman create/view.
+  2. Three.js / GSAP / canvas-confetti / vanilla-tilt TIDAK
+     dimuat di halaman ini (§23: jangan memuat dependency
+     yang tidak benar-benar digunakan). Efek visual landing
+     hanya memakai animasi CSS (transform/opacity) + SVG inline.
+  3. Tipografi memakai CDN fontsource dengan fallback font
+     sistem — jika CDN gagal, halaman tetap terbaca.
+  4. Reveal-on-scroll memakai IntersectionObserver dengan
+     fallback. State awal "tersembunyi" hanya aktif saat JS
+     berjalan (class .js pada <html>), sehingga tanpa JS
+     seluruh konten tetap tampil.
+  5. prefers-reduced-motion menonaktifkan seluruh animasi.
+  6. Tidak ada panggilan API di halaman ini; alur berlanjut
+     ke create.html sebagai entry pembuatan deklarasi.
+-->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0D0208">
+<title>Romance Engine — Deklarasi Cinta Sinematik</title>
+<meta name="description" content="Buat deklarasi cinta interaktif dengan visual 3D sinematik, musik, dan surat cinta digital dalam satu tautan — tanpa menulis kode.">
+<link rel="canonical" href="https://romance-engine.pages.dev/">
+<meta property="og:title" content="Romance Engine — Deklarasi Cinta Sinematik">
+<meta property="og:description" content="Ubah perasaanmu menjadi satu tautan hidup: musik, visual 3D, dan pertanyaan besar untuknya.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://romance-engine.pages.dev/">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23FFB3C9'/%3E%3Cstop offset='1' stop-color='%23FF5E94'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath fill='url(%23g)' d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'/%3E%3C/svg%3E">
+
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/css/playfair-display@latest/latin-700-normal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/css/playfair-display@latest/latin-500-italic.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/css/manrope@latest/latin-400-normal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/css/manrope@latest/latin-600-normal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/css/manrope@latest/latin-700-normal.css">
+
+<script>document.documentElement.classList.add('js');</script>
+
+<style>
+/* ================= Design tokens ================= */
+:root {
+  color-scheme: dark;
+  --obsidian: #0D0208;
+  --deep-crimson: #1A000C;
+  --ink: #FDF2F6;
+  --ink-dim: rgba(253, 242, 246, 0.74);
+  --ink-faint: rgba(253, 242, 246, 0.5);
+  --pink: #FF8FB1;
+  --pink-strong: #FF5E94;
+  --pink-deep: #F43F7F;
+  --cyan: #7DE8F5;
+  --glass-bg: rgba(255, 255, 255, 0.045);
+  --glass-border: rgba(255, 255, 255, 0.10);
+  --radius-lg: 22px;
+  --font-display: "Playfair Display", Georgia, "Times New Roman", serif;
+  --font-body: "Manrope", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* ================= Base ================= */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.65;
+  color: var(--ink);
+  background-color: var(--obsidian);
+  background-image:
+    radial-gradient(1100px 700px at 82% -8%, rgba(244, 63, 127, 0.14), transparent 62%),
+    radial-gradient(800px 600px at 4% 14%, rgba(125, 232, 245, 0.07), transparent 58%),
+    radial-gradient(900px 700px at 50% 118%, rgba(122, 16, 62, 0.42), transparent 62%);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+img, svg { display: block; max-width: 100%; }
+figure { margin: 0; }
+::selection { background: rgba(255, 94, 148, 0.45); color: #fff; }
+
+.container {
+  width: min(1120px, 100% - 2.5rem);
+  margin-inline: auto;
+}
+
+/* ================= Aksesibilitas ================= */
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: -3.5rem;
+  z-index: 80;
+  background: var(--deep-crimson);
+  color: var(--ink);
+  padding: 0.65rem 1.1rem;
+  border-radius: 12px;
+  border: 1px solid var(--glass-border);
+  text-decoration: none;
+  font-weight: 600;
+  transition: top 0.2s ease;
+}
+.skip-link:focus { top: 1rem; }
+
+a:focus-visible, button:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+main:focus { outline: none; }
+
+/* ================= Header ================= */
+.site-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  padding: calc(1.15rem + env(safe-area-inset-top, 0px)) 0 1rem;
+}
+.header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.18rem;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  text-decoration: none;
+}
+.brand svg {
+  width: 22px;
+  height: 22px;
+  color: var(--pink-strong);
+  filter: drop-shadow(0 0 10px rgba(255, 94, 148, 0.55));
+}
+.main-nav {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+.main-nav a:not(.btn) {
+  color: var(--ink-dim);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: color 0.2s ease;
+}
+.main-nav a:not(.btn):hover { color: var(--pink); }
+@media (max-width: 640px) {
+  .main-nav { gap: 0.9rem; }
+  .main-nav a:not(.btn) { display: none; }
+}
+
+/* ================= Tombol ================= */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  min-height: 48px;
+  padding: 0.9rem 1.7rem;
+  border-radius: 999px;
+  border: none;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease, border-color 0.25s ease;
+}
+.btn svg { width: 18px; height: 18px; flex: none; }
+.btn-primary {
+  color: #33061A;
+  background: linear-gradient(135deg, #FFC1D4 0%, #FF5E94 55%, #FF8FD0 100%);
+  box-shadow: 0 10px 34px rgba(255, 94, 148, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 46px rgba(255, 94, 148, 0.48), inset 0 0 0 1px rgba(255, 255, 255, 0.45);
+}
+.btn-ghost {
+  color: var(--ink);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+.btn-ghost:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 143, 177, 0.5);
+  background: rgba(255, 143, 177, 0.09);
+}
+.btn-sm { min-height: 44px; padding: 0.6rem 1.25rem; font-size: 0.92rem; }
+
+/* ================= Hero ================= */
+.hero {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  padding: 7.5rem 0 4.5rem;
+  overflow: hidden;
+}
+.hero-bg { position: absolute; inset: 0; pointer-events: none; }
+
+.orb { position: absolute; border-radius: 50%; }
+.orb--pink {
+  width: min(48vw, 480px);
+  aspect-ratio: 1;
+  right: -9%;
+  top: -13%;
+  background: radial-gradient(circle, rgba(255, 94, 148, 0.30) 0%, rgba(255, 94, 148, 0.09) 45%, transparent 70%);
+  animation: orb-drift 18s ease-in-out infinite alternate;
+}
+.orb--cyan {
+  width: min(42vw, 420px);
+  aspect-ratio: 1;
+  left: -11%;
+  bottom: -15%;
+  background: radial-gradient(circle, rgba(125, 232, 245, 0.20) 0%, rgba(125, 232, 245, 0.06) 45%, transparent 70%);
+  animation: orb-drift 22s ease-in-out infinite alternate-reverse;
+}
+@keyframes orb-drift {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to   { transform: translate3d(34px, 26px, 0) scale(1.07); }
+}
+
+.hearts-field { position: absolute; inset: 0; }
+.float-heart {
+  position: absolute;
+  bottom: -8%;
+  left: var(--x);
+  width: var(--size);
+  color: var(--pink);
+  opacity: 0;
+  animation: heart-rise var(--dur) linear var(--delay) infinite;
+}
+.float-heart svg {
+  width: 100%;
+  height: auto;
+  opacity: var(--alpha);
+  filter: drop-shadow(0 0 8px rgba(255, 94, 148, 0.35));
+}
+@keyframes heart-rise {
+  0%   { transform: translate3d(0, 0, 0) rotate(-7deg); opacity: 0; }
+  10%  { opacity: var(--alpha); }
+  88%  { opacity: var(--alpha); }
+  100% { transform: translate3d(var(--sway), -108vh, 0) rotate(9deg); opacity: 0; }
+}
+
+.hero-content {
+  position: relative;
+  z-index: 2;
+  max-width: 860px;
+  text-align: center;
+  display: grid;
+  gap: 1.4rem;
+  justify-items: center;
+}
+.hero-content > * { animation: fade-up 0.85s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.hero-content > *:nth-child(1) { animation-delay: 0.05s; }
+.hero-content > *:nth-child(2) { animation-delay: 0.15s; }
+.hero-content > *:nth-child(3) { animation-delay: 0.25s; }
+.hero-content > *:nth-child(4) { animation-delay: 0.35s; }
+.hero-content > *:nth-child(5) { animation-delay: 0.45s; }
+.hero-content > *:nth-child(6) { animation-delay: 0.55s; }
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0.45rem 1.05rem;
+  border-radius: 999px;
+  border: 1px solid rgba(125, 232, 245, 0.3);
+  background: rgba(125, 232, 245, 0.06);
+  color: var(--cyan);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+.eyebrow::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: 0 0 12px var(--cyan);
+}
+
+.hero-content h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(2.3rem, 4.6vw + 1rem, 4.3rem);
+  line-height: 1.12;
+  text-wrap: balance;
+}
+.hero-content h1 em {
+  font-style: italic;
+  font-weight: 500;
+  background: linear-gradient(100deg, #FFB3C9 5%, #FF5E94 50%, #8FE9F7 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+.lead {
+  margin: 0;
+  max-width: 640px;
+  color: var(--ink-dim);
+  font-size: clamp(1.02rem, 0.4vw + 0.95rem, 1.2rem);
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.hero-note {
+  margin: 0;
+  color: var(--ink-faint);
+  font-size: 0.88rem;
+  letter-spacing: 0.04em;
+}
+
+.hero-preview { display: grid; gap: 0.8rem; justify-items: center; margin-top: 0.4rem; }
+.gateway-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 0;
+  padding: 0.8rem 1.45rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 143, 177, 0.32);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  box-shadow: 0 0 32px rgba(255, 94, 148, 0.16);
+}
+.pulse-heart {
+  display: grid;
+  place-items: center;
+  color: var(--pink-strong);
+  animation: pulse 1.8s ease-in-out infinite;
+}
+.pulse-heart svg { width: 18px; height: 18px; }
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.28); }
+}
+.hero-preview figcaption {
+  color: var(--ink-faint);
+  font-size: 0.92rem;
+  font-style: italic;
+}
+
+/* ================= Seksi ================= */
+.section { position: relative; padding: clamp(4rem, 9vw, 7rem) 0; }
+.section-alt {
+  background: radial-gradient(60% 90% at 50% 0%, rgba(255, 94, 148, 0.06), transparent 65%);
+}
+
+.section-head {
+  max-width: 680px;
+  margin: 0 auto 3rem;
+  text-align: center;
+  display: grid;
+  gap: 0.9rem;
+}
+.section-eyebrow {
+  margin: 0;
+  color: var(--pink);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+}
+.section-head h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.9rem, 2.8vw + 0.9rem, 2.8rem);
+  line-height: 1.15;
+  text-wrap: balance;
+}
+.section-sub { margin: 0; color: var(--ink-dim); }
+
+/* ================= Kartu ================= */
+.steps-grid, .cards-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(255px, 1fr));
+  gap: 1.3rem;
+}
+.steps-grid > li, .cards-grid > li { display: flex; }
+
+.glass {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  position: relative;
+}
+
+.step-card, .feature-card {
+  width: 100%;
+  padding: 1.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.step-card::before, .feature-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+}
+.step-card:hover, .feature-card:hover {
+  transform: translateY(-5px);
+  border-color: rgba(255, 143, 177, 0.35);
+  box-shadow: 0 18px 50px rgba(255, 63, 127, 0.14);
+}
+
+.card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.icon-chip {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(255, 143, 177, 0.16), rgba(125, 232, 245, 0.10));
+  border: 1px solid rgba(255, 143, 177, 0.28);
+  color: var(--pink);
+}
+.icon-chip svg { width: 22px; height: 22px; }
+.step-num {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.14);
+  line-height: 1;
+}
+.step-card h3, .feature-card h3 { margin: 0; font-size: 1.18rem; font-weight: 700; }
+.step-card p, .feature-card p { margin: 0; color: var(--ink-dim); font-size: 0.98rem; }
+
+/* ================= Pill ketangguhan ================= */
+.resilience { margin-top: 2.6rem; display: flex; justify-content: center; }
+.resilience-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: 620px;
+  padding: 0.85rem 1.45rem;
+  border-radius: 999px;
+  background: rgba(125, 232, 245, 0.05);
+  border: 1px solid rgba(125, 232, 245, 0.25);
+  color: var(--ink-dim);
+  font-size: 0.95rem;
+  text-align: left;
+}
+.resilience-pill svg { width: 20px; height: 20px; flex: none; color: var(--cyan); }
+
+/* ================= CTA akhir ================= */
+.cta-panel {
+  position: relative;
+  overflow: hidden;
+  text-align: center;
+  padding: clamp(2.5rem, 6vw, 4.5rem);
+  border-radius: 28px;
+  border: 1px solid rgba(255, 143, 177, 0.28);
+  background:
+    radial-gradient(70% 120% at 50% 110%, rgba(255, 94, 148, 0.16), transparent 60%),
+    linear-gradient(160deg, rgba(255, 94, 148, 0.10), rgba(13, 2, 8, 0.6) 45%, rgba(125, 232, 245, 0.07));
+  box-shadow: 0 30px 80px rgba(255, 63, 127, 0.12);
+  display: grid;
+  gap: 1.1rem;
+  justify-items: center;
+}
+.cta-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+}
+.cta-panel h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.8rem, 2.6vw + 0.9rem, 2.7rem);
+  line-height: 1.18;
+  text-wrap: balance;
+}
+.cta-panel p { margin: 0; max-width: 560px; color: var(--ink-dim); }
+
+/* ================= Footer ================= */
+.site-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(13, 2, 8, 0.6);
+  padding: 3rem 0 calc(2.2rem + env(safe-area-inset-bottom, 0px));
+}
+.footer-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.05rem;
+  text-align: center;
+}
+.footer-brand {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+.footer-brand svg { width: 18px; height: 18px; color: var(--pink-strong); }
+.footer-tagline { margin: 0; color: var(--ink-dim); font-size: 0.98rem; }
+.footer-nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 1.6rem; }
+.footer-nav a { color: var(--ink-dim); text-decoration: none; font-size: 0.95rem; transition: color 0.2s ease; }
+.footer-nav a:hover { color: var(--pink); }
+.copyright { margin: 0; color: var(--ink-faint); font-size: 0.85rem; }
+.heart-inline { color: var(--pink-strong); }
+
+/* ================= Reveal on scroll (hanya saat JS aktif) ================= */
+html.js .reveal {
+  opacity: 0;
+  transform: translateY(22px);
+  transition: opacity 0.65s ease, transform 0.45s ease;
+}
+html.js .reveal.is-visible { opacity: 1; transform: none; }
+
+/* ================= Reduced motion ================= */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .float-heart { display: none; }
+  .orb, .pulse-heart { animation: none !important; }
+}
+</style>
+</head>
+
+<body>
+<a class="skip-link" href="#konten-utama">Langsung ke konten utama</a>
+
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="index.html" aria-current="page">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
+        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+      </svg>
+      Romance Engine
+    </a>
+    <nav class="main-nav" aria-label="Navigasi utama">
+      <a href="#cara-kerja">Cara Kerja</a>
+      <a href="#fitur">Fitur</a>
+      <a class="btn btn-primary btn-sm" href="create.html">Buat Deklarasi</a>
+    </nav>
+  </div>
+</header>
+
+<main id="konten-utama" tabindex="-1">
+
+  <!-- ================= HERO ================= -->
+  <section class="hero" aria-label="Pembuka">
+    <div class="hero-bg" aria-hidden="true">
+      <div class="orb orb--pink"></div>
+      <div class="orb orb--cyan"></div>
+      <div class="hearts-field">
+        <span class="float-heart" style="--x:5%;  --size:20px; --dur:15s;   --delay:-2s;   --sway:28px;  --alpha:.45"><svg viewBox="0 0 24 24" fill="currentColor" focusable="false"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></span>
+        <span class="float-heart" style="--x:16%; --size:14px; --dur:12s;   --delay:-5s;   --sway:-22px; --alpha:.35"><svg viewBox="0 0 24 24" fill="currentColor" focusable="false"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></span>
+        <span class="float-heart" style="--x:28%; --size:26px; --dur:18s;   --delay:-9s;   --sway:34px;  --alpha:.5"><svg viewBox="0 0 24 24" fill="currentColor" focusable="false"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></span>
+        <span class="float-heart" style="--x:42%; --size:16px; --dur:13s;   --delay:-1s;   --sway:-18px; --alpha:.38"><svg viewBox="0 0 24 24" fill="currentColor" focusable="false"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></span>
+        <span class="float-heart" style="--x:55%; --size:22px; --dur:16s;   --delay:-7s;   --sway:24px;  --alpha:.42"><svg viewBox="0 0 24 24" fill="currentColor" focusable="false"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></span>
+        <span class="float-heart" style="--x:67%; --size:15px; --dur:12.5s; --delay:-11s;  --sway:-26px; --alpha:.34"><svg viewBox="0 0 24 24" fill="currentColor" focusable="false"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></span>
+        <span class="float-heart" style="--x:79%; --size:24px; --dur:17s;   --delay:-4s;   --sway:30px;  --alpha:.48"><svg viewBox="0 0 24 24" fill="currentColor" focusable="false"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></span>
+        <span class="float-heart" style="--x:91%; --size:18px; --dur:14s;   --delay:-12.5s;--sway:-20px; --alpha:.4"><svg viewBox="0 0 24 24" fill="currentColor" focusable="false"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></span>
+      </div>
+    </div>
+
+    <div class="container hero-content">
+      <p class="eyebrow">Romance Engine · Surat Cinta Digital</p>
+
+      <h1>Sampaikan cintamu sebagai <em>pengalaman sinematik</em>, bukan sekadar pesan.</h1>
+
+      <p class="lead">
+        Romance Engine merangkai nama, pesan, lagu, dan tanggal spesial kalian
+        menjadi satu tautan hidup — lengkap dengan musik yang mengalun,
+        kelopak hati yang melayang, dan sebuah pertanyaan besar untuknya.
+      </p>
+
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="create.html">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+          </svg>
+          Buat Deklarasi Cinta
+        </a>
+        <a class="btn btn-ghost" href="#cara-kerja">Lihat Cara Kerja</a>
+      </div>
+
+      <p class="hero-note">Tanpa install &nbsp;·&nbsp; Tanpa ubah kode &nbsp;·&nbsp; Satu tautan siap dibagikan</p>
+
+      <figure class="hero-preview">
+        <p class="gateway-chip">
+          <span class="pulse-heart" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor" focusable="false">
+              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+            </svg>
+          </span>
+          Tap to Open My Heart
+        </p>
+        <figcaption>— seperti inilah pasanganmu membuka tautan darimu nanti.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ================= CARA KERJA ================= -->
+  <section class="section" id="cara-kerja" aria-labelledby="cara-kerja-title">
+    <div class="container">
+      <div class="section-head reveal">
+        <p class="section-eyebrow">Cara Kerja</p>
+        <h2 id="cara-kerja-title">Tiga langkah menuju hatinya</h2>
+        <p class="section-sub">Dari kata-kata sederhana menjadi pengalaman yang akan ia buka dengan senyum.</p>
+      </div>
+
+      <ol class="steps-grid" role="list">
+        <li class="reveal">
+          <article class="step-card glass">
+            <div class="card-top">
+              <span class="icon-chip" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" focusable="false">
+                  <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+                </svg>
+              </span>
+              <span class="step-num" aria-hidden="true">01</span>
+            </div>
+            <h3>Tulis ceritamu</h3>
+            <p>Isi nama pasangan, pesan paling dalam, tanggal spesial kalian, foto kenangan, dan lagu yang penuh arti.</p>
+          </article>
+        </li>
+
+        <li class="reveal" style="transition-delay: 0.1s;">
+          <article class="step-card glass">
+            <div class="card-top">
+              <span class="icon-chip" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" focusable="false">
+                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                </svg>
+              </span>
+              <span class="step-num" aria-hidden="true">02</span>
+            </div>
+            <h3>Terima tautan unikmu</h3>
+            <p>Deklarasimu tersimpan rapi dan kamu mendapatkan satu URL istimewa — siap dikirim lewat chat apa pun.</p>
+          </article>
+        </li>
+
+        <li class="reveal" style="transition-delay: 0.2s;">
+          <article class="step-card glass">
+            <div class="card-top">
+              <span class="icon-chip" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" focusable="false">
+                  <path d="M12 2.5l2.1 5.1 5.4 1.9-5.4 1.9L12 16.5l-2.1-5.1-5.4-1.9 5.4-1.9Z"/>
+                  <path d="M19 15l1 2.4 2.5 1-2.5 1-1 2.4-1-2.4-2.5-1 2.5-1Z"/>
+                </svg>
+              </span>
+              <span class="step-num" aria-hidden="true">03</span>
+            </div>
+            <h3>Biarkan dia merasakannya</h3>
+            <p>Ia mengetuk pintu hati: musik mengalun, visual tiga dimensi bernyala, penghitung hari berjalan, dan pertanyaan itu muncul.</p>
+          </article>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ================= FITUR ================= -->
+  <section class="section section-alt" id="fitur" aria-labelledby="fitur-title">
+    <div class="container">
+      <div class="section-head reveal">
+        <p class="section-eyebrow">Fitur</p>
+        <h2 id="fitur-title">Sebuah panggung untuk perasaanmu</h2>
+        <p class="section-sub">Setiap detail dirancang agar momen itu terasa personal, hangat, dan tak terlupakan.</p>
+      </div>
+
+      <ul class="cards-grid" role="list">
+        <li class="reveal">
+          <article class="feature-card glass">
+            <div class="card-top">
+              <span class="icon-chip" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" focusable="false">
+                  <path d="M12 20.5s-7-4.6-9.3-8.6C.8 8.4 2.6 4.5 6 4.5c2 0 3.6 1 4.6 2.5.3.5 1.5.5 1.8 0 1-1.5 2.6-2.5 4.6-2.5 3.4 0 5.2 3.9 3.3 7.4-2.3 4-8.3 8.6-8.3 8.6Z"/>
+                </svg>
+              </span>
+            </div>
+            <h3>Panggung tiga dimensi</h3>
+            <p>Hati, kelopak, dan bintang melayang di atas palet obsidian dan deep crimson, berkilau lembut dalam glassmorphism.</p>
+          </article>
+        </li>
+
+        <li class="reveal" style="transition-delay: 0.1s;">
+          <article class="feature-card glass">
+            <div class="card-top">
+              <span class="icon-chip" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" focusable="false">
+                  <path d="M12 2.5l2.1 5.1 5.4 1.9-5.4 1.9L12 16.5l-2.1-5.1-5.4-1.9 5.4-1.9Z"/>
+                  <path d="M19 15l1 2.4 2.5 1-2.5 1-1 2.4-1-2.4-2.5-1 2.5-1Z"/>
+                </svg>
+              </span>
+            </div>
+            <h3>Pertanyaan YES / NO</h3>
+            <p>Tombol &ldquo;Tidak&rdquo; akan menghindar dengan jenaka. Jawaban &ldquo;Ya&rdquo; memicu konfeti, melodi kemenangan, dan surat cinta yang menanti.</p>
+          </article>
+        </li>
+
+        <li class="reveal" style="transition-delay: 0.2s;">
+          <article class="feature-card glass">
+            <div class="card-top">
+              <span class="icon-chip" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" focusable="false">
+                  <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
+                </svg>
+              </span>
+            </div>
+            <h3>Penghitung hari spesial</h3>
+            <p>Setiap hari, jam, menit, dan detik yang telah kalian lalui bersama — diperbarui langsung di layar.</p>
+          </article>
+        </li>
+      </ul>
+
+      <div class="resilience reveal">
+        <p class="resilience-pill">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+            <path d="M12 3l7 3v5c0 4.5-3 8.1-7 10-4-1.9-7-5.5-7-10V6Z"/><path d="M9 12l2 2 4-4"/>
+          </svg>
+          Dirancang tangguh — saat WebGL, audio, atau koneksi tidak sempurna, pengalaman tetap berlanjut dengan anggun.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= CTA AKHIR ================= -->
+  <section class="section" id="mulai" aria-labelledby="mulai-title">
+    <div class="container">
+      <div class="cta-panel reveal">
+        <h2 id="mulai-title">Perasaanmu layak disampaikan dengan cara yang paling indah</h2>
+        <p>Luangkan beberapa menit untuk menulisnya — satu tautan yang mungkin ia kenang selamanya.</p>
+        <a class="btn btn-primary" href="create.html">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+          </svg>
+          Buat Deklarasi Sekarang
+        </a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <p class="footer-brand">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
+        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+      </svg>
+      Romance Engine
+    </p>
+    <p class="footer-tagline">Setiap tautan adalah pintu menuju perasaanmu.</p>
+    <nav class="footer-nav" aria-label="Navigasi footer">
+      <a href="index.html" aria-current="page">Beranda</a>
+      <a href="#cara-kerja">Cara Kerja</a>
+      <a href="#fitur">Fitur</a>
+      <a href="create.html">Buat Deklarasi</a>
+    </nav>
+    <p class="copyright">Romance Engine V1 · Dibangun dengan <span class="heart-inline" aria-hidden="true">♥</span> di Cloudflare Pages &amp; Workers</p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  // Reveal-on-scroll dengan fallback: jika IntersectionObserver tidak
+  // tersedia atau terjadi kesalahan, seluruh elemen langsung ditampilkan
+  // agar konten tidak pernah terperangkap dalam state tersembunyi.
+  var revealElements = document.querySelectorAll('.reveal');
+
+  function showAll() {
+    revealElements.forEach(function (el) { el.classList.add('is-visible'); });
+  }
+
+  try {
+    if (!('IntersectionObserver' in window)) {
+      showAll();
+      return;
+    }
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.15, rootMargin: '0px 0px -8% 0px' });
+
+    revealElements.forEach(function (el) { observer.observe(el); });
+  } catch (err) {
+    showAll();
+  }
+})();
+</script>
+</body>
+</html>
