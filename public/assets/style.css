@@ -1,0 +1,990 @@
+/* ============================================================
+   Romance Engine V1 — assets/css/style.css
+   ============================================================
+   Stylesheet utama untuk create.html dan view.html.
+   (index.html self-contained dengan style inline-nya sendiri.)
+
+   KONTRAK VISUAL (dijaga ketat — jangan diubah sepihak):
+     z-index 0  : #scene-container, #css-hearts
+     z-index 1  : .screen, .experience
+     z-index 30 : #btn-sound
+     z-index 50 : #letter-modal
+     body.webgl-off  -> menampilkan fallback #css-hearts
+     body.modal-open -> overflow hidden saat modal terbuka
+
+   PRINSIP (sesuai spesifikasi romance-engine.xml):
+     - §17 Performance  : animasi hanya transform/opacity,
+                          tidak memicu layout/reflow berlebihan.
+     - §18 Responsive   : mobile-first, tanpa horizontal overflow,
+                          safe-area mobile diperhatikan.
+     - §19 Accessibility: focus-visible jelas, kontras cukup,
+                          respect prefers-reduced-motion.
+     - §20 Visual       : obsidian + deep crimson, glassmorphism,
+                          soft glow cyan/pink, cinematic gradients.
+     - §22 Degradation  : WebGL fallback visual via CSS tetap elegan.
+   ============================================================ */
+
+/* ================= 1. DESIGN TOKENS ================= */
+:root {
+  color-scheme: dark;
+
+  /* Palet inti (§20) */
+  --obsidian: #0D0208;
+  --deep-crimson: #1A000C;
+  --crimson-soft: #2A0516;
+  --ink: #FDF2F6;
+  --ink-dim: rgba(253, 242, 246, 0.74);
+  --ink-faint: rgba(253, 242, 246, 0.5);
+  --pink: #FF8FB1;
+  --pink-strong: #FF5E94;
+  --pink-deep: #F43F7F;
+  --cyan: #7DE8F5;
+  --success: #7DE8A5;
+  --danger: #FF6B6B;
+
+  /* Glassmorphism */
+  --glass-bg: rgba(255, 255, 255, 0.05);
+  --glass-bg-strong: rgba(255, 255, 255, 0.08);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-border-strong: rgba(255, 255, 255, 0.2);
+
+  /* Glow */
+  --glow-pink: rgba(255, 94, 148, 0.35);
+  --glow-cyan: rgba(125, 232, 245, 0.3);
+
+  /* Radius */
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-full: 999px;
+
+  /* Tipografi — fallback sistem selalu tersedia jika CDN font gagal */
+  --font-display: "Playfair Display", Georgia, "Times New Roman", serif;
+  --font-body: "Manrope", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  /* Gradien sinematik */
+  --gradient-accent: linear-gradient(100deg, #FFB3C9 0%, #FF5E94 50%, #8FE9F7 100%);
+  --gradient-button: linear-gradient(135deg, #FFC1D4 0%, #FF5E94 55%, #FF8FD0 100%);
+  --gradient-page:
+    radial-gradient(1100px 700px at 82% -8%, rgba(244, 63, 127, 0.14), transparent 62%),
+    radial-gradient(800px 600px at 4% 14%, rgba(125, 232, 245, 0.07), transparent 58%),
+    radial-gradient(900px 700px at 50% 118%, rgba(122, 16, 62, 0.42), transparent 62%);
+
+  /* Durasi animasi */
+  --ease-smooth: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --dur-fast: 0.2s;
+  --dur-med: 0.4s;
+}
+
+/* ================= 2. BASE & RESET ================= */
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.65;
+  color: var(--ink);
+  background-color: var(--obsidian);
+  background-image: var(--gradient-page);
+  background-attachment: fixed;
+  overflow-x: hidden;
+  min-height: 100vh;
+  min-height: 100svh;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+img, svg, video { display: block; max-width: 100%; }
+figure { margin: 0; }
+ul, ol { margin: 0; }
+h1, h2, h3, h4, p { margin: 0; }
+
+::selection { background: rgba(255, 94, 148, 0.45); color: #fff; }
+
+[hidden] { display: none !important; }
+
+main:focus { outline: none; }
+
+/* Scrollbar halus untuk modal & area scroll */
+.letter-body::-webkit-scrollbar { width: 8px; }
+.letter-body::-webkit-scrollbar-track { background: transparent; }
+.letter-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 143, 177, 0.3);
+  border-radius: 4px;
+}
+
+/* ================= 3. ACCESSIBILITY ================= */
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: -3.5rem;
+  z-index: 100;
+  background: var(--deep-crimson);
+  color: var(--ink);
+  padding: 0.65rem 1.1rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-border);
+  text-decoration: none;
+  font-weight: 600;
+  transition: top var(--dur-fast) ease;
+}
+.skip-link:focus { top: 1rem; }
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 3px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ================= 4. TYPOGRAPHY & UTILITIES ================= */
+.container {
+  width: min(1080px, 100% - 2.5rem);
+  margin-inline: auto;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 1.05rem;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(125, 232, 245, 0.3);
+  background: rgba(125, 232, 245, 0.06);
+  color: var(--cyan);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.gradient-text {
+  background: var(--gradient-accent);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+.glass {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+
+/* ================= 5. BUTTONS ================= */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  min-height: 48px; /* target sentuh yang nyaman (§18) */
+  padding: 0.9rem 1.7rem;
+  border-radius: var(--radius-full);
+  border: none;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-decoration: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--dur-med) var(--ease-smooth),
+              box-shadow var(--dur-med) var(--ease-smooth),
+              background-color var(--dur-med) var(--ease-smooth),
+              border-color var(--dur-med) var(--ease-smooth),
+              opacity var(--dur-fast) ease;
+}
+.btn svg { width: 18px; height: 18px; flex: none; }
+
+.btn-primary {
+  color: #33061A;
+  background: var(--gradient-button);
+  box-shadow: 0 10px 34px var(--glow-pink), inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 46px rgba(255, 94, 148, 0.48), inset 0 0 0 1px rgba(255, 255, 255, 0.45);
+}
+.btn-primary:active { transform: translateY(0); }
+
+.btn-ghost {
+  color: var(--ink);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+.btn-ghost:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 143, 177, 0.5);
+  background: rgba(255, 143, 177, 0.09);
+}
+
+.btn-sm { min-height: 44px; padding: 0.6rem 1.25rem; font-size: 0.92rem; }
+
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Tombol YES — primary action yang menonjol (§13) */
+.btn-yes {
+  color: #33061A;
+  background: var(--gradient-button);
+  box-shadow: 0 12px 40px var(--glow-pink), inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+  font-size: 1.15rem;
+  padding: 1.1rem 2.4rem;
+  min-height: 56px;
+}
+.btn-yes:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 20px 60px rgba(255, 94, 148, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+}
+
+/* Tombol NO — playful, posisi diatur oleh interactive.js (§13) */
+.btn-no {
+  color: var(--ink-dim);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  font-size: 0.95rem;
+  padding: 0.7rem 1.5rem;
+  min-height: 44px;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+.btn-no:hover { color: var(--ink); border-color: var(--glass-border-strong); }
+
+/* ================= 6. HEADER & BRAND (create page) ================= */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  padding: 1rem 0;
+  background: rgba(13, 2, 8, 0.6);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.18rem;
+  color: var(--ink);
+  text-decoration: none;
+}
+.brand svg {
+  width: 22px;
+  height: 22px;
+  color: var(--pink-strong);
+  filter: drop-shadow(0 0 10px var(--glow-pink));
+}
+
+/* ================= 7. CREATE PAGE — FORM (§8) ================= */
+.create-page {
+  padding: 3rem 0 5rem;
+}
+.create-head {
+  max-width: 640px;
+  margin: 0 auto 2.5rem;
+  text-align: center;
+  display: grid;
+  gap: 0.9rem;
+  justify-items: center;
+}
+.create-head h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.9rem, 3vw + 0.9rem, 2.8rem);
+  line-height: 1.15;
+  text-wrap: balance;
+}
+.create-head p { color: var(--ink-dim); }
+
+.form-card {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: clamp(1.5rem, 4vw, 2.5rem);
+  display: grid;
+  gap: 1.5rem;
+  position: relative;
+}
+.form-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+}
+
+.field { display: grid; gap: 0.5rem; }
+.field label {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--ink);
+}
+.field .label-hint {
+  display: block;
+  font-weight: 400;
+  font-size: 0.82rem;
+  color: var(--ink-faint);
+  margin-top: 0.15rem;
+}
+
+.field input[type="text"],
+.field input[type="url"],
+.field input[type="date"],
+.field input[type="datetime-local"],
+.field textarea {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  min-height: 48px;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  color: var(--ink);
+  background: rgba(13, 2, 8, 0.5);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  transition: border-color var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.field textarea {
+  min-height: 160px;
+  resize: vertical;
+  line-height: 1.6;
+}
+.field input::placeholder,
+.field textarea::placeholder { color: var(--ink-faint); }
+
+.field input:focus,
+.field textarea:focus {
+  border-color: var(--pink-strong);
+  box-shadow: 0 0 0 3px rgba(255, 94, 148, 0.2);
+  outline: none;
+}
+
+.field.has-error input,
+.field.has-error textarea {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.15);
+}
+
+.field-error {
+  display: none;
+  font-size: 0.85rem;
+  color: var(--danger);
+  line-height: 1.4;
+}
+.field.has-error .field-error { display: block; }
+
+.char-count {
+  font-size: 0.78rem;
+  color: var(--ink-faint);
+  text-align: right;
+}
+
+.form-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+/* Alert status (sukses/gagal kirim) */
+.form-alert {
+  display: none;
+  padding: 0.9rem 1.1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+.form-alert.is-visible { display: block; }
+.form-alert--error {
+  background: rgba(255, 107, 107, 0.12);
+  border: 1px solid rgba(255, 107, 107, 0.35);
+  color: #FFB3B3;
+}
+.form-alert--success {
+  background: rgba(125, 232, 165, 0.1);
+  border: 1px solid rgba(125, 232, 165, 0.35);
+  color: var(--success);
+}
+
+/* Panel hasil: URL deklarasi yang siap dibagikan */
+.result-panel {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: clamp(1.5rem, 4vw, 2.5rem);
+  text-align: center;
+  display: grid;
+  gap: 1.4rem;
+  justify-items: center;
+}
+.result-panel h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.5rem, 2.5vw + 0.8rem, 2.1rem);
+}
+.result-panel .result-desc { color: var(--ink-dim); }
+
+.url-box {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.7rem 0.7rem 0.7rem 1rem;
+  background: rgba(13, 2, 8, 0.6);
+  border: 1px solid var(--glass-border-strong);
+  border-radius: var(--radius-md);
+}
+.url-box input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--cyan);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+}
+.url-box input:focus { outline: none; }
+
+.result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.9rem;
+}
+
+/* Spinner loading pada tombol submit */
+.btn .spinner {
+  display: none;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(51, 6, 26, 0.3);
+  border-top-color: #33061A;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+.btn.is-loading .spinner { display: inline-block; }
+.btn.is-loading .btn-label { opacity: 0.7; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ================= 8. VIEW — SCREENS (F-002) ================= */
+.screen {
+  background: transparent;
+  gap: 1rem;
+}
+
+/* --- Boot / loading --- */
+#screen-boot { background: radial-gradient(80% 80% at 50% 40%, rgba(122, 16, 62, 0.25), transparent 70%); }
+
+.boot-heart {
+  font-size: 3rem;
+  color: var(--pink-strong);
+  text-shadow: 0 0 30px var(--glow-pink);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+.boot-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+.boot-sub {
+  color: var(--ink-dim);
+  max-width: 320px;
+  font-size: 0.95rem;
+}
+
+/* --- Recovery state --- */
+#screen-recovery { background: radial-gradient(80% 80% at 50% 40%, rgba(122, 16, 62, 0.2), transparent 70%); }
+.recovery-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.5rem, 2.5vw + 0.8rem, 2rem);
+}
+.recovery-text {
+  color: var(--ink-dim);
+  max-width: 420px;
+  line-height: 1.7;
+}
+.recovery-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+/* --- Gateway (F-003) --- */
+#screen-gateway {
+  background:
+    radial-gradient(90% 70% at 50% 100%, rgba(122, 16, 62, 0.5), transparent 60%),
+    radial-gradient(60% 50% at 50% 0%, rgba(255, 94, 148, 0.12), transparent 65%);
+}
+
+.gateway-eyebrow {
+  color: var(--cyan);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+}
+.gateway-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.8rem, 3.5vw + 1rem, 3rem);
+  margin-bottom: 1rem;
+  text-wrap: balance;
+}
+
+.gateway-button {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 2rem 2.5rem;
+  background: var(--glass-bg-strong);
+  border: 1px solid rgba(255, 143, 177, 0.4);
+  border-radius: var(--radius-lg);
+  color: var(--ink);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 0 50px rgba(255, 94, 148, 0.2), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  transition: transform var(--dur-med) var(--ease-smooth),
+              box-shadow var(--dur-med) var(--ease-smooth),
+              border-color var(--dur-med) var(--ease-smooth);
+}
+.gateway-button:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 0 80px rgba(255, 94, 148, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+  border-color: var(--pink-strong);
+}
+.gateway-heart {
+  font-size: 2.6rem;
+  color: var(--pink-strong);
+  text-shadow: 0 0 30px var(--glow-pink);
+  animation: pulse 1.8s ease-in-out infinite;
+}
+.gateway-label {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.2rem;
+  letter-spacing: 0.04em;
+}
+.gateway-hint {
+  margin-top: 1.2rem;
+  color: var(--ink-faint);
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.18); opacity: 0.85; }
+}
+
+/* ================= 9. VIEW — EXPERIENCE ================= */
+.experience {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(3rem, 6vw, 4.5rem);
+  padding: clamp(3rem, 6vw, 4.5rem) 1.25rem;
+  padding-bottom: calc(clamp(3rem, 6vw, 4.5rem) + env(safe-area-inset-bottom, 0px));
+  max-width: 760px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+}
+
+.re-hero { text-align: center; display: grid; gap: 0.9rem; }
+.re-eyebrow {
+  color: var(--cyan);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+}
+.re-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(2rem, 4vw + 1rem, 3.4rem);
+  line-height: 1.12;
+  text-wrap: balance;
+}
+.re-title span { color: var(--pink-strong); }
+.re-sub { color: var(--ink-dim); font-size: 1.05rem; }
+
+/* Foto kenangan */
+.re-photo {
+  margin: 0 auto;
+  max-width: 560px;
+  width: 100%;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--glass-border-strong);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(255, 94, 148, 0.12);
+}
+.re-photo img {
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+}
+.re-photo-caption {
+  padding: 0.8rem 1rem;
+  text-align: center;
+  font-size: 0.88rem;
+  color: var(--ink-dim);
+  background: rgba(13, 2, 8, 0.7);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+/* ================= 10. SPECIAL DAY COUNTER (F-007) ================= */
+.re-counter {
+  text-align: center;
+  padding: clamp(1.8rem, 4vw, 2.5rem) 1.5rem;
+  border-radius: var(--radius-lg);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  position: relative;
+}
+.re-counter::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+}
+
+.re-section-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.4rem, 2vw + 0.8rem, 1.9rem);
+  margin-bottom: 0.5rem;
+}
+.counter-label {
+  color: var(--ink-dim);
+  font-size: 0.95rem;
+  margin-bottom: 1.5rem;
+}
+
+.counter-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+}
+.counter-cell {
+  display: grid;
+  gap: 0.3rem;
+  padding: 1rem 0.5rem;
+  background: rgba(13, 2, 8, 0.5);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+}
+.counter-value {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.4rem, 3vw + 0.6rem, 2.4rem);
+  color: var(--pink);
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 20px var(--glow-pink);
+}
+.counter-unit {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+@media (max-width: 420px) {
+  .counter-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ================= 11. YES / NO (F-005) ================= */
+.re-question {
+  text-align: center;
+  display: grid;
+  gap: 0.9rem;
+}
+.re-question-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.6rem, 2.5vw + 0.9rem, 2.4rem);
+  text-wrap: balance;
+}
+.re-question-sub { color: var(--ink-dim); }
+
+/* Playground: container relatif tempat tombol NO dapat berpindah (§13) */
+.no-playground {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  min-height: 120px;
+  /* Batas aman agar teleport NO tidak keluar area (§13) */
+  overflow: visible;
+}
+.no-playground .btn-no {
+  /* interactive.js dapat override posisi via transform/absolute.
+     Nilai awal tetap inline flow agar layout tidak overflow permanen. */
+  position: relative;
+  will-change: transform;
+}
+
+/* ================= 12. FOOTER EXPERIENCE ================= */
+.re-footer {
+  text-align: center;
+  padding-top: 1rem;
+}
+.re-footer a {
+  color: var(--ink-faint);
+  font-size: 0.85rem;
+  text-decoration: none;
+  transition: color var(--dur-fast) ease;
+}
+.re-footer a:hover { color: var(--pink); }
+
+/* ================= 13. SOUND TOGGLE ================= */
+.sound-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.1rem;
+  min-height: 44px;
+  background: var(--glass-bg-strong);
+  border: 1px solid var(--glass-border-strong);
+  border-radius: var(--radius-full);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  transition: border-color var(--dur-fast) ease, background-color var(--dur-fast) ease;
+  /* posisi fixed diatur inline di view.html (top:1rem; right:1rem; z:30) */
+}
+.sound-toggle:hover {
+  border-color: rgba(255, 143, 177, 0.5);
+  background: rgba(255, 143, 177, 0.1);
+}
+
+/* ================= 14. LOVE LETTER MODAL (F-006) ================= */
+#letter-modal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  /* inset & z diatur inline di view.html */
+}
+#letter-modal[hidden] { display: none; }
+
+.letter-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(13, 2, 8, 0.75);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+.letter-paper {
+  position: relative;
+  width: min(560px, 100%);
+  max-height: min(85vh, 85svh);
+  display: flex;
+  flex-direction: column;
+  padding: clamp(1.5rem, 4vw, 2.5rem);
+  background: linear-gradient(160deg, rgba(42, 5, 22, 0.92), rgba(13, 2, 8, 0.95));
+  border: 1px solid rgba(255, 143, 177, 0.35);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.6), 0 0 60px rgba(255, 94, 148, 0.18);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  animation: letter-in 0.5s var(--ease-smooth) both;
+}
+@keyframes letter-in {
+  from { opacity: 0; transform: translateY(24px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+.letter-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.letter-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.3rem, 2vw + 0.7rem, 1.8rem);
+}
+.letter-close {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-full);
+  color: var(--ink-dim);
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease;
+}
+.letter-close:hover { color: var(--ink); border-color: var(--pink-strong); }
+
+.letter-body {
+  overflow-y: auto;
+  padding-right: 0.5rem;
+  display: grid;
+  gap: 1rem;
+  font-size: 1.02rem;
+  line-height: 1.8;
+  color: var(--ink);
+  flex: 1;
+}
+.letter-body p { margin: 0; }
+
+.letter-sign {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: right;
+  color: var(--ink-dim);
+}
+.letter-from {
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--pink);
+  margin-top: 0.3rem;
+}
+.letter-hint {
+  margin-top: 1rem;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--ink-faint);
+  letter-spacing: 0.06em;
+}
+
+/* ================= 15. CSS HEARTS FALLBACK (F-004 degradation) ================= */
+/* Tersembunyi secara default; hanya tampil saat body.webgl-off */
+.css-hearts {
+  display: none;
+  overflow: hidden;
+}
+body.webgl-off .css-hearts { display: block; }
+
+.css-hearts span {
+  position: absolute;
+  bottom: -10%;
+  width: 18px;
+  height: 18px;
+  color: var(--pink-strong);
+  opacity: 0;
+  animation: heart-rise 14s linear infinite;
+}
+.css-hearts span::before {
+  content: "♥";
+  font-size: inherit;
+  text-shadow: 0 0 12px var(--glow-pink);
+}
+.css-hearts span:nth-child(1) { left: 6%;  font-size: 16px; animation-duration: 15s; animation-delay: -2s; }
+.css-hearts span:nth-child(2) { left: 18%; font-size: 12px; animation-duration: 12s; animation-delay: -6s; }
+.css-hearts span:nth-child(3) { left: 32%; font-size: 22px; animation-duration: 18s; animation-delay: -10s; }
+.css-hearts span:nth-child(4) { left: 47%; font-size: 14px; animation-duration: 13s; animation-delay: -1s; }
+.css-hearts span:nth-child(5) { left: 61%; font-size: 20px; animation-duration: 16s; animation-delay: -8s; }
+.css-hearts span:nth-child(6) { left: 74%; font-size: 13px; animation-duration: 12.5s; animation-delay: -11s; }
+.css-hearts span:nth-child(7) { left: 86%; font-size: 24px; animation-duration: 17s; animation-delay: -4s; }
+.css-hearts span:nth-child(8) { left: 94%; font-size: 15px; animation-duration: 14s; animation-delay: -13s; }
+
+@keyframes heart-rise {
+  0%   { transform: translateY(0) rotate(-6deg); opacity: 0; }
+  10%  { opacity: 0.5; }
+  88%  { opacity: 0.5; }
+  100% { transform: translateY(-108vh) rotate(10deg); opacity: 0; }
+}
+
+/* ================= 16. BODY STATES ================= */
+body.modal-open { overflow: hidden; }
+
+/* ================= 17. RESPONSIVE (§18) ================= */
+@media (max-width: 640px) {
+  .experience { padding-left: 1rem; padding-right: 1rem; }
+  .gateway-button { padding: 1.6rem 2rem; }
+  .letter-paper {
+    max-height: min(90vh, 90svh);
+    border-radius: var(--radius-md);
+  }
+  .btn-yes { font-size: 1.05rem; padding: 1rem 2rem; }
+  .result-actions { flex-direction: column; width: 100%; }
+  .result-actions .btn { width: 100%; }
+}
+
+@media (min-width: 768px) {
+  .form-actions { flex-direction: row; justify-content: center; }
+}
+
+/* ================= 18. REDUCED MOTION (§22) ================= */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .css-hearts { display: none !important; }
+  .boot-heart, .gateway-heart { animation: none !important; }
+}
