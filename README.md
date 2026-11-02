@@ -69,14 +69,14 @@ You're free to do anything with the romance-engine code as long as it doesn't vi
   https://axion-hub.axn.cc.cd/donate
 
 ## contacts
-**Email:** azrielspace852@gmail.com, or axionneuralis@gmail.com
-**Tiktok:** @azrielspace, or @axion.neuralis, and @random.ai.id
-**Github** @azrielspace852-wq
+**Email  :** azrielspace852@gmail.com, or axionneuralis@gmail.com
+**TikTok :** @azrielspace, or @axion.neuralis, and @random.ai.id
+**Github :** @azrielspace852-wq
 
 ## Site
 
-- **AXION Neuralis Documentation:** https://axion-neuralis.axn.cc.cd
-- **AXION Hub:** https://axion-hub.axn.cc.cd
-- **ROMANCE ENGINE:** https://romance-engine.pages.dev
-- **AXION Labs:** https://research.lab.axn.cc.cd
-- **AXION Search:** https://search.axn.cc.cd
+- **AXION Neuralis Documentation :** https://axion-neuralis.axn.cc.cd
+- **AXION Hub                    :** https://axion-hub.axn.cc.cd
+- **ROMANCE ENGINE               :** https://romance-engine.pages.dev
+- **AXION Labs                   :** https://research.lab.axn.cc.cd
+- **AXION Search                 :** https://search.axn.cc.cd
