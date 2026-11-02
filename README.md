@@ -6,7 +6,7 @@
 
 ## Folder Structure
 
-**public:*** (pages)
+**public:** (pages)
 ```text
    romance-engine-pages/
    └── public/
