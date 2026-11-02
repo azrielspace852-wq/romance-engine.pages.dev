@@ -75,8 +75,8 @@ You're free to do anything with the romance-engine code as long as it doesn't vi
 
 ## Site
 
-**AXION Neuralis Documentation:** https://axion-neuralis.axn.cc.cd
-**AXION Hub:** https://axion-hub.axn.cc.cd
-**ROMANCE ENGINE:** https://romance-engine.pages.dev
-**AXION Labs:** https://research.lab.axn.cc.cd
-**AXION Search:** https://search.axn.cc.cd
+- **AXION Neuralis Documentation:** https://axion-neuralis.axn.cc.cd
+- **AXION Hub:** https://axion-hub.axn.cc.cd
+- **ROMANCE ENGINE:** https://romance-engine.pages.dev
+- **AXION Labs:** https://research.lab.axn.cc.cd
+- **AXION Search:** https://search.axn.cc.cd
