@@ -69,9 +69,9 @@ You're free to do anything with the romance-engine code as long as it doesn't vi
   https://axion-hub.axn.cc.cd/donate
 
 ## contacts
-**Email    :** azrielspace852@gmail.com, or axionneuralis@gmail.com
-**TikTok   :** @azrielspace, or @axion.neuralis, and @random.ai.id
-**Github   :** @azrielspace852-wq
+- **Email    :** azrielspace852@gmail.com, or axionneuralis@gmail.com
+- **TikTok   :** https://tiktok.com/@azrielspace or https://tiktok.com/@axion.neuralis and https://tiktok.com/@random.ai.id
+- **Github   :** https://github.com/@azrielspace852-wq
 
 ## Site
 
